@@ -1,0 +1,53 @@
+Folder PATH listing
+Volume serial number is 00000073 B63C:376D
+C:.
+|   alembic.ini
+|   main.py
+|   structure.txt
+|   
++---alembic
+|   |   env.py
+|   |   
+|   \---versions
+|           001_init_tables.py
+|           
++---app
+|       config.py
+|       database.py
+|       
++---core
+|       dependencies.py
+|       exceptions.py
+|       security.py
+|       
++---models
+|       job.py
+|       note.py
+|       refresh_token.py
+|       user.py
+|       
++---routers
+|       auth.py
+|       jobs.py
+|       notes.py
+|       search.py
+|       stats.py
+|       
++---schemas
+|       auth.py
+|       job.py
+|       saved_job.py
+|       user.py
+|       
++---services
+|       adzuna_service.py
+|       auth_service.py
+|       email_service.py
+|       job_service.py
+|       saved_job_service.py
+|       stats_service.py
+|       
+\---tasks
+        celery_app.py
+        reminder_task.py
+        
