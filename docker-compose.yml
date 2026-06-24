@@ -1,0 +1,83 @@
+version: "3.9"
+
+services:
+
+  # --------------------
+  # DATABASE (PostgreSQL)
+  # --------------------
+  db:
+    image: postgres:15
+    container_name: nexthire-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nexthire
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # --------------------
+  # REDIS (for caching + celery)
+  # --------------------
+  redis:
+    image: redis:7
+    container_name: nexthire-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # --------------------
+  # BACKEND (FastAPI)
+  # --------------------
+  backend:
+    build: ./backend
+    container_name: nexthire-backend
+    restart: always
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/nexthire
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+
+  # --------------------
+  # CELERY WORKER
+  # --------------------
+  worker:
+    build: ./backend
+    container_name: nexthire-worker
+    restart: always
+    depends_on:
+      - backend
+      - redis
+      - db
+    command: celery -A tasks.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/nexthire
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+
+  # --------------------
+  # FRONTEND (static HTML/CSS/JS)
+  # --------------------
+  frontend:
+    image: nginx:alpine
+    container_name: nexthire-frontend
+    restart: always
+    ports:
+      - "5500:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+
+# --------------------
+# VOLUMES
+# --------------------
+volumes:
+  pgdata:
