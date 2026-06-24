@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
-from backend.services.stats_service import StatsService
-from backend.core.dependencies import get_current_user
+from services.stats_service import StatsService
+from core.dependencies import get_current_user
+
 
 router = APIRouter(prefix="/stats", tags=["Stats"])
 
