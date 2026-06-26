@@ -1,15 +1,15 @@
 from fastapi import HTTPException
 
-from backend.models.saved_job import SavedJob
-from backend.models.job import Job
+from models.saved_job import SavedJob
+from models.job import Job
 
 
 class SavedJobService:
 
     @staticmethod
-    def save_job(db, user_id: int, job_id: int):
+    def save_job(db, user_id: int, external_id: str):
 
-        job = db.query(Job).filter(Job.id == job_id).first()
+        job = db.query(Job).filter(Job.external_id == external_id).first()
 
         if not job:
             raise HTTPException(
@@ -21,7 +21,7 @@ class SavedJobService:
             db.query(SavedJob)
             .filter(
                 SavedJob.user_id == user_id,
-                SavedJob.job_id == job_id
+                SavedJob.job_id == job.id
             )
             .first()
         )
@@ -34,16 +34,14 @@ class SavedJobService:
 
         saved_job = SavedJob(
             user_id=user_id,
-            job_id=job_id
+            job_id=job.id
         )
 
         db.add(saved_job)
         db.commit()
         db.refresh(saved_job)
 
-        return {
-            "message": "Job saved successfully"
-        }
+        return saved_job
 
     @staticmethod
     def get_saved_jobs(db, user_id: int):
@@ -80,3 +78,17 @@ class SavedJobService:
         return {
             "message": "Saved job removed"
         }
+
+    @staticmethod
+    def update_status(db, user_id: int, saved_job_id: int, status: str):
+        saved_job = (
+            db.query(SavedJob)
+            .filter(SavedJob.id == saved_job_id, SavedJob.user_id == user_id)
+            .first()
+        )
+        if not saved_job:
+            raise HTTPException(status_code=404, detail="Saved job not found")
+        saved_job.status = status
+        db.commit()
+        db.refresh(saved_job)
+        return saved_job
