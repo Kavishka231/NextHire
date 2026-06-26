@@ -1,18 +1,11 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.core.security import decode_token
-from backend.models.user import User
-from backend.app.database import SessionLocal
+from core.security import decode_token
+from models.user import User
+from app.database import get_db
 
 security = HTTPBearer()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_current_user(
