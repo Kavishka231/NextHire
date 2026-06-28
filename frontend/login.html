@@ -12,13 +12,20 @@
 
 <div class="form-box">
   <h2>Login</h2>
+  <div id="alertBox" class="alert"></div>
 
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
+  <form id="loginForm">
+    <input name="email" id="email" type="email" placeholder="Email" required>
+    <input name="password" id="password" type="password" placeholder="Password" required>
 
-  <button class="btn" onclick="login()">Login</button>
+    <button class="btn" type="submit">Login</button>
+  </form>
 </div>
 
+<script src="js/api.js"></script>
 <script src="js/auth.js"></script>
+<script>
+  initLogin();
+</script>
 </body>
 </html>

@@ -1,34 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextHire</title>
-  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="/css/main.css" />
 </head>
 <body>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
 
-<nav>
-  <div class="logo">NextHire</div>
-  <div>
-    <a href="login.html">Login</a>
-    <a href="register.html">Register</a>
-  </div>
-</nav>
-
-<div class="container">
-
- <div class="hero">
-  <h1>Find your next job faster</h1>
-  <p>Search real jobs, save them, and get career reminders — all in one place.</p>
-
-  <div class="search-box">
-    <input placeholder="Search jobs: Python, Java, React..." />
-  </div>
-
-  <br />
-  <a class="btn" href="search.html">Start Exploring Jobs</a>
-</div>
-
-</div>
-
+<script>
+  if (Auth.isLoggedIn()) {
+    window.location.replace("/dashboard.html");
+  } else {
+    window.location.replace("/login.html");
+  }
+</script>
 </body>
 </html>

@@ -443,7 +443,49 @@ function closeDrawer() {
 
 // ── Save job (stub — full implementation in Saved Jobs feature) ───────────────
 async function handleSave(job, btn) {
-  showToast("Sign in to save jobs — coming in the next feature!", "info");
+  if (!requireAuth()) return;
+  const original = btn?.innerHTML;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
+  try {
+    await api.post("/saved-jobs", { external_id: job.external_id });
+    showToast("Job saved", "success");
+    if (btn) btn.textContent = "Saved";
+  } catch (err) {
+    showToast(err.detail || "Could not save job", "error");
+    if (btn) btn.innerHTML = original;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function searchJobs() {
+  if (!requireAuth()) return;
+
+  const query = document.getElementById("query")?.value.trim() || "developer";
+  const results = document.getElementById("results");
+  if (!results) return;
+
+  results.innerHTML = "<p>Searching...</p>";
+  try {
+    const data = await api.get(`/search/jobs?keywords=${encodeURIComponent(query)}`);
+    results.innerHTML = data.jobs.map(job => `
+      <div class="card">
+        <h3>${escHtml(job.title)}</h3>
+        <div class="company">${escHtml(job.company || "Company not listed")} - ${escHtml(job.location || "Remote")}</div>
+        <p>${escHtml(stripHtml(job.description || "")).slice(0, 180)}</p>
+        <button class="btn" data-external-id="${escHtml(job.external_id)}">Save Job</button>
+      </div>
+    `).join("");
+
+    results.querySelectorAll("button[data-external-id]").forEach((button, index) => {
+      button.addEventListener("click", () => handleSave(data.jobs[index], button));
+    });
+  } catch (err) {
+    results.innerHTML = `<p>${escHtml(err.detail || "Search failed")}</p>`;
+  }
 }
 
 

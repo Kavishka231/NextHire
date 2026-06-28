@@ -18,7 +18,7 @@ class SavedJob(Base):
 
     user = relationship("User", back_populates="saved_jobs")
     job = relationship("Job")
-    notes = relationship("Note", back_populates="saved_job")
+    notes = relationship("Note", back_populates="saved_job", cascade="all, delete-orphan")
 
     @property
     def external_id(self):

@@ -12,14 +12,21 @@
 
 <div class="form-box">
   <h2>Create Account</h2>
+  <div id="alertBox" class="alert"></div>
 
-  <input id="name" placeholder="Name">
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
+  <form id="registerForm">
+    <input name="fullName" id="name" placeholder="Name" required>
+    <input name="email" id="email" placeholder="Email" required>
+    <input name="password" id="password" type="password" placeholder="Password" required>
 
-  <button class="btn" onclick="register()">Register</button>
+    <button class="btn" type="submit">Register</button>
+  </form>
 </div>
 
 <script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script>
+  initRegister();
+</script>
 </body>
 </html>

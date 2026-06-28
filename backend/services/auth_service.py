@@ -1,10 +1,9 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
-from uuid import uuid4
+from fastapi import HTTPException
 
 from models.user import User
 from models.refresh_token import RefreshToken
-from core.security import hash_password, verify_password, create_access_token
+from core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from schemas.auth import RegisterRequest, LoginRequest
 
 
@@ -40,7 +39,7 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         token = create_access_token({"user_id": user.id, "email": user.email})
-        refresh = RefreshToken(token=str(uuid4()), user_id=user.id)
+        refresh = RefreshToken(token=create_refresh_token(), user_id=user.id)
         db.add(refresh)
         db.commit()
 
@@ -59,11 +58,14 @@ class AuthService:
         )
         if not refresh:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
+
         user = db.query(User).filter(User.id == refresh.user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
+
         return {
             "access_token": create_access_token({"user_id": user.id, "email": user.email}),
+            "refresh_token": refresh.token,
             "token_type": "bearer",
         }
 
@@ -83,6 +85,8 @@ class AuthService:
     def change_password(db: Session, user: User, current_password: str, new_password: str):
         if not verify_password(current_password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+
         user.hashed_password = hash_password(new_password)
+        db.query(RefreshToken).filter(RefreshToken.user_id == user.id).update({"is_revoked": True})
         db.commit()
         return {"message": "Password changed"}

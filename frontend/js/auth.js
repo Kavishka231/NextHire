@@ -11,6 +11,34 @@ function hideAlert(id) {
   if (el) el.className = "alert";
 }
 
+const Auth = {
+  setTokens(accessToken, refreshToken) {
+    if (accessToken) localStorage.setItem("token", accessToken);
+    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
+  },
+  getToken() {
+    return localStorage.getItem("token");
+  },
+  getRefresh() {
+    return localStorage.getItem("refresh_token");
+  },
+  clearTokens() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+  },
+  isLoggedIn() {
+    return Boolean(localStorage.getItem("token"));
+  },
+};
+
+function requireAuth() {
+  if (!Auth.isLoggedIn()) {
+    window.location.replace("/login.html");
+    return false;
+  }
+  return true;
+}
+
 function setLoading(btn, loading) {
   if (loading) {
     btn.disabled = true;
@@ -68,7 +96,11 @@ function initLogin() {
   });
 }
 
-
+function redirectIfAuthed() {
+  if (Auth.isLoggedIn()) {
+    window.location.replace("/dashboard.html");
+  }
+}
 // ════════════════════════════════════════════════════════════════════════════
 //  REGISTER PAGE
 // ════════════════════════════════════════════════════════════════════════════
@@ -164,7 +196,10 @@ function initForgotPassword() {
 // ════════════════════════════════════════════════════════════════════════════
 async function logout() {
   try {
-    await api.post("/auth/logout", { refresh_token: Auth.getRefresh() });
+    const refreshToken = Auth.getRefresh();
+    if (refreshToken) {
+      await api.post("/auth/logout", { refresh_token: refreshToken });
+    }
   } catch (_) { /* best effort */ }
   Auth.clearTokens();
   window.location.href = "/login.html";
