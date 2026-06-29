@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from datetime import datetime
 
 from models.user import User
 from models.refresh_token import RefreshToken
 from core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from schemas.auth import RegisterRequest, LoginRequest
+from services.notification_service import notify_admins
 
 
 class AuthService:
@@ -19,12 +21,27 @@ class AuthService:
         user = User(
             full_name=data.full_name,
             email=data.email,
-            hashed_password=hash_password(data.password)
+            hashed_password=hash_password(data.password),
+            account_type=data.account_type,
+            company_name=data.company_name if data.account_type == "company" else None,
+            company_website=data.company_website if data.account_type == "company" else None,
+            company_description=data.company_description if data.account_type == "company" else None,
+            company_status="pending" if data.account_type == "company" else "none",
+            company_verified=False,
         )
 
         db.add(user)
         db.commit()
         db.refresh(user)
+
+        if user.account_type == "company":
+            notify_admins(
+                db,
+                "New company registration",
+                f"{user.company_name or user.full_name} is waiting for company approval.",
+                "company_pending",
+            )
+            db.commit()
 
         return user
 
@@ -35,11 +52,18 @@ class AuthService:
         if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account is deactivated")
+
+        if user.banned_until and user.banned_until > datetime.utcnow():
+            raise HTTPException(status_code=403, detail="Account is temporarily banned")
+
         if not verify_password(data.password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         token = create_access_token({"user_id": user.id, "email": user.email})
         refresh = RefreshToken(token=create_refresh_token(), user_id=user.id)
+        user.last_active_at = datetime.utcnow()
         db.add(refresh)
         db.commit()
 

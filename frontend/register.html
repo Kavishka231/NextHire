@@ -1,31 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register</title>
   <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
+<body class="auth-page">
 
 <nav>
-  <div class="logo">NextHire</div>
+  <a class="logo brand-mark" href="/"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <a href="/login.html">Login</a>
+  </div>
 </nav>
 
-<div class="form-box">
+<div class="form-box auth-shell">
+  <span class="eyebrow">Start free</span>
   <h2>Create Account</h2>
+  <p class="auth-copy">Build your premium job search workspace in seconds.</p>
   <div id="alertBox" class="alert"></div>
 
   <form id="registerForm">
     <input name="fullName" id="name" placeholder="Name" required>
-    <input name="email" id="email" placeholder="Email" required>
-    <input name="password" id="password" type="password" placeholder="Password" required>
+    <input name="email" id="email" type="email" placeholder="Email" required>
+    <div class="account-choice">
+      <label><input type="radio" name="accountType" value="candidate" checked> Candidate</label>
+      <label><input type="radio" name="accountType" value="company"> Company</label>
+    </div>
+    <div class="company-fields hidden" id="companyFields">
+      <input name="companyName" placeholder="Company name">
+      <input name="companyWebsite" placeholder="Company website">
+      <textarea name="companyDescription" rows="3" placeholder="What does your company do?"></textarea>
+      <p class="auth-copy">Company accounts stay pending until an admin approves them.</p>
+    </div>
+    <div class="password-field">
+      <input name="password" id="password" type="password" placeholder="Password" autocomplete="new-password" required>
+      <button class="toggle-password" type="button" data-target="password" aria-label="Show password">Show</button>
+    </div>
+    <div class="password-field">
+      <input name="confirmPassword" id="confirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
+      <button class="toggle-password" type="button" data-target="confirmPassword" aria-label="Show confirmed password">Show</button>
+    </div>
+    <p class="field-error" id="confirmError">Passwords do not match.</p>
 
     <button class="btn" type="submit">Register</button>
   </form>
+  <p class="auth-switch">Already registered? <a href="/login.html">Login instead</a></p>
+  <p class="auth-switch">Hiring? Choose company above and request approval.</p>
 </div>
 
-<script src="js/auth.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/api.js"></script>
+<script src="js/auth.js"></script>
 <script>
+  initThemeToggle();
   initRegister();
 </script>
 </body>

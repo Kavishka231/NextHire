@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="app-nav" aria-label="Admin navigation">
+  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/admin.html" class="active">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <button class="btn btn-ghost" type="button" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<main class="admin-shell">
+  <section class="app-hero glass-card">
+    <div>
+      <span class="eyebrow">Control room</span>
+      <h1>Admin dashboard</h1>
+      <p>Manage users, jobs, content, analytics, email actions, system health, and admin accounts.</p>
+    </div>
+    <div class="admin-credentials">
+      <span>Dev super admin</span>
+      <strong>admin@nexthire.com</strong>
+      <code>Admin@12345</code>
+    </div>
+  </section>
+
+  <section class="admin-kpis" id="adminSummary"></section>
+
+  <section class="admin-grid">
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Users</span><h2>User management</h2></div>
+        <input id="adminUserSearch" placeholder="Search users..." />
+      </div>
+      <div class="admin-table-wrap"><table class="admin-table" id="adminUsers"></table></div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Companies</span><h2>Pending company approvals</h2></div>
+      </div>
+      <div id="pendingCompanies" class="admin-list"></div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Jobs</span><h2>Job management</h2></div>
+      </div>
+      <form class="admin-inline-form" id="featuredJobForm">
+        <input name="title" placeholder="Featured job title" required />
+        <input name="company" placeholder="Company" />
+        <input name="location" placeholder="Location" />
+        <button class="btn" type="submit">Add featured</button>
+      </form>
+      <div class="admin-table-wrap"><table class="admin-table" id="adminJobs"></table></div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Moderation</span><h2>Notes and profiles</h2></div>
+      </div>
+      <div class="admin-split">
+        <div><h3>Recent notes</h3><div id="adminNotes" class="admin-list"></div></div>
+        <div><h3>Profiles</h3><div id="adminProfiles" class="admin-list"></div></div>
+      </div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Analytics</span><h2>Platform stats</h2></div>
+      </div>
+      <div id="adminAnalytics" class="admin-list"></div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Email</span><h2>Notifications</h2></div>
+      </div>
+      <form class="admin-inline-form" id="broadcastForm">
+        <input name="subject" placeholder="Broadcast subject" required />
+        <input name="body" placeholder="Message" />
+        <button class="btn" type="submit">Send broadcast</button>
+      </form>
+      <pre id="emailPreview" class="admin-code"></pre>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">System</span><h2>Health</h2></div>
+      </div>
+      <div id="adminHealth" class="admin-list"></div>
+    </article>
+
+    <article class="admin-panel glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Admins</span><h2>Create admin account</h2></div>
+      </div>
+      <form class="admin-inline-form" id="adminCreateForm">
+        <input name="full_name" placeholder="Full name" required />
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="password" type="password" placeholder="Password" required />
+        <select name="role">
+          <option value="moderator">Moderator</option>
+          <option value="analyst">Analyst</option>
+          <option value="super_admin">Super admin</option>
+        </select>
+        <button class="btn" type="submit">Create admin</button>
+      </form>
+    </article>
+  </section>
+</main>
+
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/admin.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  initAdmin();
+</script>
+</body>
+</html>

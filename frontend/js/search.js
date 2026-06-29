@@ -18,8 +18,8 @@ let state = {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initSearch() {
-  requireAuth();
-  loadUserInfo();
+  setupPublicNav();
+  if (Auth.isLoggedIn()) loadUserInfo();
 
   // Restore query from URL params
   const params = new URLSearchParams(window.location.search);
@@ -88,6 +88,18 @@ function bindEvents() {
       if (kw === "all") { state.keywords = document.getElementById("searchKeywords").value.trim() || "developer"; }
       else { state.keywords = kw; document.getElementById("searchKeywords").value = kw; }
       state.page = 1;
+      runSearch();
+    });
+  });
+
+  document.querySelectorAll(".starter-card").forEach(card => {
+    card.addEventListener("click", () => {
+      state.keywords = card.dataset.starter || "developer";
+      state.location = card.dataset.location || "";
+      state.page = 1;
+      document.getElementById("searchKeywords").value = state.keywords;
+      document.getElementById("searchLocation").value = state.location;
+      document.getElementById("filterLocation").value = state.location;
       runSearch();
     });
   });
@@ -234,7 +246,7 @@ function renderJobs(jobs) {
   container.querySelectorAll(".job-card").forEach((card, idx) => {
     card.addEventListener("click", (e) => {
       if (e.target.closest(".job-card-save")) return;
-      openDrawer(jobs[idx]);
+      window.location.href = `/job-detail.html?external_id=${encodeURIComponent(jobs[idx].external_id)}`;
     });
   });
 
@@ -266,7 +278,7 @@ function jobCardHTML(job, idx) {
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5"/>
             </svg>
-            ${escHtml(job.company || "Company not listed")}
+            ${escHtml(job.company || "Company not listed")} ${job.company_verified ? `<span class="verified-badge">Verified</span>` : ""}
           </div>
         </div>
         <button class="job-card-save" data-id="${escHtml(job.external_id)}" title="Save job">
@@ -303,6 +315,7 @@ function jobCardHTML(job, idx) {
 
       <div class="job-card-footer">
         <div class="job-tags">
+          ${job.source === "company" ? `<span class="badge badge-blue">Direct post</span>` : ""}
           ${contractBadge}
           ${job.category ? `<span class="tag">${escHtml(job.category)}</span>` : ""}
         </div>
@@ -443,7 +456,13 @@ function closeDrawer() {
 
 // ── Save job (stub — full implementation in Saved Jobs feature) ───────────────
 async function handleSave(job, btn) {
-  if (!requireAuth()) return;
+  if (!Auth.isLoggedIn()) {
+    showToast("Create a free account to save jobs to your board.", "info");
+    setTimeout(() => {
+      window.location.href = "/register.html?next=/search.html";
+    }, 900);
+    return;
+  }
   const original = btn?.innerHTML;
   if (btn) {
     btn.disabled = true;
@@ -451,7 +470,7 @@ async function handleSave(job, btn) {
   }
   try {
     await api.post("/saved-jobs", { external_id: job.external_id });
-    showToast("Job saved", "success");
+    showToast("Job saved to your board", "success");
     if (btn) btn.textContent = "Saved";
   } catch (err) {
     showToast(err.detail || "Could not save job", "error");
@@ -462,8 +481,6 @@ async function handleSave(job, btn) {
 }
 
 async function searchJobs() {
-  if (!requireAuth()) return;
-
   const query = document.getElementById("query")?.value.trim() || "developer";
   const results = document.getElementById("results");
   if (!results) return;
@@ -490,6 +507,27 @@ async function searchJobs() {
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function setupPublicNav() {
+  const avatar = document.getElementById("navAvatar");
+  const actions = document.querySelector(".app-nav .nav-actions");
+  if (!actions) return;
+
+  if (Auth.isLoggedIn()) {
+    avatar?.classList.remove("hidden");
+    return;
+  }
+
+  avatar?.classList.add("hidden");
+  if (!document.getElementById("publicNavLinks")) {
+    actions.insertAdjacentHTML("beforeend", `
+      <div class="public-nav-links" id="publicNavLinks">
+        <a href="/login.html">Login</a>
+        <a class="nav-cta" href="/register.html">Start free</a>
+      </div>
+    `);
+  }
+}
+
 function formatSalary(min, max, predicted) {
   const fmt = (n) => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${n}`;
   if (!min && !max) return "";

@@ -71,7 +71,9 @@ services:
   # FRONTEND (static HTML/CSS/JS)
   # --------------------
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: DockerFile
     container_name: nexthire-frontend
     restart: always
     depends_on:

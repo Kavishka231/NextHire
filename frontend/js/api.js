@@ -7,6 +7,10 @@ function getToken() {
 }
 
 async function request(endpoint, options = {}) {
+  return rawRequest(endpoint, options, true);
+}
+
+async function rawRequest(endpoint, options = {}, allowRefresh = true) {
   const token = getToken();
 
   const headers = {
@@ -19,6 +23,11 @@ async function request(endpoint, options = {}) {
     ...options,
     headers,
   });
+
+  if (response.status === 401 && allowRefresh && localStorage.getItem("refresh_token")) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return rawRequest(endpoint, options, false);
+  }
 
   if (!response.ok) {
     let error = {};
@@ -38,6 +47,24 @@ async function request(endpoint, options = {}) {
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+async function refreshAccessToken() {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: localStorage.getItem("refresh_token") }),
+    });
+
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (data.access_token) localStorage.setItem("token", data.access_token);
+    if (data.refresh_token) localStorage.setItem("refresh_token", data.refresh_token);
+    return Boolean(data.access_token);
+  } catch (_) {
+    return false;
+  }
 }
 
 const api = {

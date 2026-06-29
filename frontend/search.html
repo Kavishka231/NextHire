@@ -1,28 +1,160 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Search Jobs</title>
-  <link rel="stylesheet" href="css/main.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Jobs | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
 </head>
-<body>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
 
-<nav>
-  <div class="logo">NextHire</div>
+<nav class="app-nav" aria-label="Main navigation">
+  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/search.html" class="active">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/employer.html">Post jobs</a>
+    <a href="/admin.html">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">
+      <span id="navInitials">NH</span>
+      <div class="nav-avatar-menu" id="avatarMenu">
+        <div class="avatar-menu-head">
+          <div id="navUserName"></div>
+          <small id="navUserEmail"></small>
+        </div>
+        <button class="menu-danger" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+  </div>
 </nav>
 
-<div class="container">
+<main class="search-shell">
+  <section class="search-hero app-hero">
+    <div>
+      <span class="eyebrow">AI-powered search workspace</span>
+      <h1>Discover roles worth tracking.</h1>
+      <p>Search live job listings, filter fast, inspect details, and save the strongest opportunities to your board.</p>
+    </div>
+    <div class="ai-orbit" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+  </section>
 
-  <h2>Search Jobs</h2>
+  <section class="search-starter-grid" aria-label="Recommended job searches">
+    <button class="starter-card glass-card" type="button" data-starter="frontend developer" data-location="Remote">
+      <span>Remote friendly</span>
+      <strong>Frontend Developer</strong>
+      <small>React, UI engineering, SaaS products</small>
+    </button>
+    <button class="starter-card glass-card" type="button" data-starter="software engineer" data-location="London">
+      <span>High demand</span>
+      <strong>Software Engineer</strong>
+      <small>Backend, full-stack, platform roles</small>
+    </button>
+    <button class="starter-card glass-card" type="button" data-starter="data analyst" data-location="Remote">
+      <span>Analytics</span>
+      <strong>Data Analyst</strong>
+      <small>SQL, dashboards, business insights</small>
+    </button>
+    <button class="starter-card glass-card" type="button" data-starter="internship software" data-location="">
+      <span>Early career</span>
+      <strong>Internships</strong>
+      <small>Graduate and student-friendly listings</small>
+    </button>
+  </section>
 
-  <input id="query" placeholder="Search Python, Java, React...">
-  <button class="btn" onclick="searchJobs()">Search</button>
+  <section class="search-layout">
+    <aside class="filter-panel glass-card">
+      <div class="panel-title">Filters</div>
+      <label for="filterLocation">Location</label>
+      <input id="filterLocation" placeholder="London, Remote, Colombo" />
 
-  <div class="grid" id="results"></div>
+      <label for="filterSalaryMin">Salary min</label>
+      <input id="filterSalaryMin" type="number" placeholder="50000" />
 
-</div>
+      <label for="filterSalaryMax">Salary max</label>
+      <input id="filterSalaryMax" type="number" placeholder="120000" />
 
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/search.js"></script>
+      <label for="filterCategory">Category</label>
+      <select id="filterCategory">
+        <option value="">Any category</option>
+      </select>
+
+      <div class="radio-stack" role="radiogroup" aria-label="Job type">
+        <label><input type="radio" name="contractTime" value="any" checked /> Any type</label>
+        <label><input type="radio" name="contractTime" value="full" /> Full-time</label>
+        <label><input type="radio" name="contractTime" value="part" /> Part-time</label>
+      </div>
+
+      <button class="btn" id="applyFilters" type="button">Apply filters</button>
+      <button class="btn btn-ghost" id="resetFilters" type="button">Reset</button>
+    </aside>
+
+    <section class="results-panel">
+      <form class="search-command glass-card" id="heroSearchForm">
+        <input id="searchKeywords" placeholder="Search title, skill, company..." />
+        <input id="searchLocation" placeholder="Location" />
+        <select id="sortSelect" aria-label="Sort jobs">
+          <option value="relevance">Relevance</option>
+          <option value="date">Newest</option>
+          <option value="salary">Salary</option>
+        </select>
+        <button class="btn" type="submit">Search</button>
+      </form>
+
+      <div class="quick-chips" aria-label="Quick searches">
+        <button class="search-chip active" data-kw="all">All</button>
+        <button class="search-chip" data-kw="python developer">Python</button>
+        <button class="search-chip" data-kw="frontend engineer">Frontend</button>
+        <button class="search-chip" data-kw="data analyst">Data</button>
+        <button class="search-chip" data-kw="product manager">Product</button>
+      </div>
+
+      <div class="results-head">
+        <div id="resultsCount">Start a search to see matching roles</div>
+        <button class="btn btn-ghost" id="mobileFilterBtn" type="button">Filters</button>
+      </div>
+
+      <div class="jobs-list" id="jobsList"></div>
+      <div class="pagination" id="pagination"></div>
+    </section>
+  </section>
+</main>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="job-drawer glass-card" id="jobDrawer" aria-label="Job details">
+  <button class="drawer-close" id="drawerClose" type="button" aria-label="Close job details">×</button>
+  <div class="drawer-logo" id="drawerLogo">NH</div>
+  <h2 id="drawerTitle">Job title</h2>
+  <p id="drawerCompany"></p>
+  <div class="drawer-meta">
+    <span id="drawerSalary"></span>
+    <span id="drawerLocation"></span>
+    <span id="drawerType"></span>
+    <span id="drawerPosted"></span>
+  </div>
+  <p id="drawerDescription"></p>
+  <a class="btn" id="drawerApplyBtn" href="#" target="_blank" rel="noreferrer">Apply now</a>
+</aside>
+
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/search.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  initSearch();
+</script>
 </body>
 </html>

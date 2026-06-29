@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employer | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
+<nav class="app-nav">
+  <a class="logo brand-mark" href="/"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/employer.html" class="active">Post jobs</a>
+    <a href="/admin.html">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+  </div>
+</nav>
+<main class="employer-shell">
+  <section class="app-hero glass-card">
+    <div>
+      <span class="eyebrow">Employer workspace</span>
+      <h1>Post verified company jobs.</h1>
+      <p id="companyStatusText">Loading company status...</p>
+    </div>
+    <a class="btn btn-ghost" href="/register.html">Register company</a>
+  </section>
+
+  <section class="employer-layout">
+    <form id="companyProfileForm" class="profile-section glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Company profile</span><h2>Verification details</h2></div>
+        <span class="verified-badge hidden" id="companyVerifiedBadge">Verified</span>
+      </div>
+      <div class="form-grid">
+        <label>Company name<input name="company_name" required /></label>
+        <label>Company website<input name="company_website" placeholder="https://..." /></label>
+        <label>Company description<textarea name="company_description" rows="5" placeholder="What does your company do?"></textarea></label>
+      </div>
+      <button class="btn" type="submit">Save company details</button>
+      <p class="auth-copy">Changing details after approval sends the company back to pending review.</p>
+    </form>
+
+    <form id="companyJobForm" class="profile-section glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Job post</span><h2>Create or update a job</h2></div>
+        <input type="hidden" name="job_id" />
+      </div>
+      <div class="form-grid">
+        <label>Job title<input name="title" required placeholder="Senior Frontend Engineer" /></label>
+        <label>Company<input name="company" placeholder="Your company name" /></label>
+        <label>Location<input name="location" placeholder="Remote, Colombo, London" /></label>
+        <label>Category<input name="category" placeholder="Software, Design, Data" /></label>
+        <label>Employment type<input name="employment_type" placeholder="Full-time, Internship, Contract" /></label>
+        <label>Work style<input name="work_style" placeholder="Remote, Hybrid, On-site" /></label>
+        <label>Experience level<input name="experience_level" placeholder="Junior, Mid, Senior" /></label>
+        <label>Salary min<input name="salary_min" type="number" /></label>
+        <label>Salary max<input name="salary_max" type="number" /></label>
+        <label>Deadline<input name="deadline" type="date" /></label>
+        <label>Description<textarea name="description" rows="4" required></textarea></label>
+        <label>Responsibilities<textarea name="responsibilities" rows="3"></textarea></label>
+        <label>Requirements<textarea name="requirements" rows="3"></textarea></label>
+        <label>Benefits<textarea name="benefits" rows="3"></textarea></label>
+        <label>Application email<input name="application_email" type="email" /></label>
+        <label>Application URL<input name="application_url" placeholder="https://..." /></label>
+        <label>Application instructions<textarea name="application_instructions" rows="3"></textarea></label>
+      </div>
+      <button class="btn" type="submit">Publish job</button>
+      <button class="btn btn-ghost" id="clearJobForm" type="button">Clear</button>
+    </form>
+    <section class="profile-section glass-card">
+      <div class="profile-section-head">
+        <div><span class="eyebrow">Owned posts</span><h2>Your job posts</h2></div>
+      </div>
+      <div id="companyJobsList" class="jobs-list"></div>
+    </section>
+  </section>
+</main>
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/employer.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  initEmployer();
+</script>
+</body>
+</html>

@@ -75,6 +75,12 @@ function initLogin() {
     btn.addEventListener("click", () => togglePasswordVisibility(btn.dataset.target, btn));
   });
 
+  document.querySelectorAll('input[name="accountType"]').forEach(input => {
+    input.addEventListener("change", () => {
+      document.getElementById("companyFields")?.classList.toggle("hidden", input.value !== "company" || !input.checked);
+    });
+  });
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     hideAlert("alertBox");
@@ -133,8 +139,8 @@ function initRegister() {
     e.preventDefault();
     hideAlert("alertBox");
 
-    // Client-side validation
-    if (form.password.value !== confirmInput?.value) {
+    // Client-side validation. Some auth screens may not include confirmation.
+    if (confirmInput && form.password.value !== confirmInput.value) {
       showAlert("alertBox", "Passwords do not match.");
       return;
     }
@@ -143,17 +149,25 @@ function initRegister() {
     setLoading(btn, true);
 
     try {
+      const isCompany = form.accountType.value === "company";
       await api.post("/auth/register", {
         email: form.email.value.trim(),
         full_name: form.fullName.value.trim(),
         password: form.password.value,
+        account_type: form.accountType.value,
+        company_name: form.companyName?.value.trim() || null,
+        company_website: form.companyWebsite?.value.trim() || null,
+        company_description: form.companyDescription?.value.trim() || null,
       });
       showAlert("alertBox",
-        "Account created! Check your email to verify your account, then log in.",
+        isCompany
+          ? "Company request submitted. Admin approval is required before posting jobs."
+          : "Account created! Taking you to job search.",
         "success"
       );
       form.reset();
-      setTimeout(() => { window.location.href = "/login.html"; }, 3000);
+      const next = new URLSearchParams(window.location.search).get("next") || "/search.html?q=developer";
+      setTimeout(() => { window.location.href = isCompany ? "/login.html" : next; }, 1200);
     } catch (err) {
       showAlert("alertBox", err.detail || "Registration failed. Please try again.");
     } finally {

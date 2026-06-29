@@ -1,39 +1,125 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="css/main.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
 </head>
-<body>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
 
-<nav>
-  <div class="logo">NextHire</div>
-  <div>
-    <a href="jobs.html">Jobs</a>
-    <a href="search.html">Search</a>
+<nav class="app-nav" aria-label="Main navigation">
+  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html" class="active">Dashboard</a>
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/employer.html">Post jobs</a>
+    <a href="/admin.html">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">
+      <span id="navInitials">NH</span>
+      <div class="nav-avatar-menu" id="avatarMenu">
+        <div class="avatar-menu-head">
+          <div id="navUserName"></div>
+          <small id="navUserEmail"></small>
+        </div>
+        <a href="/search.html">Search jobs</a>
+        <a href="/jobs.html">My board</a>
+        <a href="/profile.html">Profile</a>
+        <a href="/admin.html">Admin</a>
+        <button class="menu-danger" onclick="logout()">Sign out</button>
+      </div>
+    </div>
   </div>
 </nav>
 
-<div class="container">
-
-  <h2>Dashboard</h2>
-
-  <div class="grid">
-
-    <div class="card">
-      <h3>Total Jobs</h3>
-      <p id="totalJobs">Loading...</p>
+<main class="dash-shell">
+  <section class="dashboard-hero app-hero glass-card">
+    <div>
+      <span class="eyebrow">Command center</span>
+      <h1 id="heroGreeting">Welcome back</h1>
+      <p>Your pipeline, follow-ups, interviews, and offers in one polished view.</p>
     </div>
-
-    <div class="card">
-      <h3>Saved Jobs</h3>
-      <p id="savedJobs">Loading...</p>
+    <div class="hero-actions">
+      <a href="/search.html" class="btn">Search jobs</a>
+      <a href="/jobs.html" class="btn btn-ghost">Open board</a>
     </div>
+  </section>
 
-  </div>
+  <section>
+    <div class="section-title">Overview</div>
+    <div class="kpi-grid">
+      <div id="kpiTotal"></div>
+      <div id="kpiApplied"></div>
+      <div id="kpiInterviews"></div>
+      <div id="kpiOffers"></div>
+      <div id="kpiResponse"></div>
+      <div id="kpiOfferRate"></div>
+    </div>
+  </section>
 
-</div>
+  <section>
+    <div class="section-title">Analytics</div>
+    <div class="charts-row">
+      <div class="chart-card glass-card">
+        <div class="chart-card-title">Applications by stage</div>
+        <div id="funnelChart"><div class="chart-empty">Save jobs to see your pipeline.</div></div>
+      </div>
+      <div class="chart-card glass-card">
+        <div class="chart-card-title">Activity this week</div>
+        <div id="weeklyChart"><div class="chart-empty">No activity recorded yet.</div></div>
+      </div>
+    </div>
+  </section>
 
-<script src="js/stats.js"></script>
+  <section class="bottom-row">
+    <div class="chart-card glass-card">
+      <div class="chart-card-title">Top companies</div>
+      <div id="topCompanies"><div class="chart-empty">No company data yet.</div></div>
+    </div>
+    <div class="chart-card glass-card">
+      <div class="chart-card-title">Average salary range</div>
+      <div id="salaryCard"><div class="chart-empty">Save jobs with salary info.</div></div>
+    </div>
+    <div class="chart-card glass-card">
+      <div class="chart-card-title">Status breakdown</div>
+      <div id="recentActivity"><div class="chart-empty">Your board is waiting.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Quick actions</div>
+    <div class="quick-actions">
+      <a href="/search.html" class="quick-action-card glass-card"><strong>Search jobs</strong><span>Find new opportunities</span></a>
+      <a href="/jobs.html" class="quick-action-card glass-card"><strong>My board</strong><span>Manage the pipeline</span></a>
+      <a href="/profile.html" class="quick-action-card glass-card"><strong>Complete profile</strong><span>Improve job recommendations</span></a>
+      <a href="/search.html?q=python+developer" class="quick-action-card glass-card"><strong>Quick search</strong><span>Python developer roles</span></a>
+    </div>
+  </section>
+</main>
+
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/stats.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  document.getElementById("navAvatar")?.addEventListener("click", e => {
+    e.stopPropagation();
+    document.getElementById("avatarMenu")?.classList.toggle("open");
+  });
+  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
+  initDashboard();
+</script>
 </body>
 </html>
