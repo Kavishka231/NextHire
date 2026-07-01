@@ -6,37 +6,86 @@
   <title>Login</title>
   <link rel="stylesheet" href="css/main.css">
 </head>
-<body class="auth-page">
+<body class="auth-page login-page">
 
 <nav>
-  <a class="logo brand-mark" href="/"><span class="brand-icon">N</span>NextHire</a>
+  <a class="logo brand-mark" href="index.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="search.html">Search</a>
+  </div>
   <div class="nav-actions">
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
       <span class="toggle-sun" aria-hidden="true"></span>
       <span class="toggle-moon" aria-hidden="true"></span>
     </button>
-    <a href="/register.html">Create account</a>
+    <a href="register.html">Try for free</a>
   </div>
 </nav>
 
-<div class="form-box auth-shell">
-  <span class="eyebrow">Welcome back</span>
-  <h2>Login</h2>
-  <p class="auth-copy">Sign in to manage your job search pipeline.</p>
+<main class="auth-layout login-layout">
+  <section class="auth-visual" aria-hidden="true">
+    <span class="eyebrow">NextHire workspace</span>
+    <h1>Track every role from search to offer.</h1>
+    <p>Securely access saved jobs, applications, profile autofill, company review tools, and admin workflows.</p>
+    <div class="auth-illustration">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </section>
+
+<div class="form-box auth-shell login-card">
+  <div class="login-card-head">
+    <span class="eyebrow">Welcome back</span>
+    <h2>Login to NextHire</h2>
+    <p class="auth-copy">Access your hiring workspace, saved roles, applications, and notifications.</p>
+  </div>
   <div id="alertBox" class="alert"></div>
 
-  <form id="loginForm">
-    <input name="email" id="email" type="email" placeholder="Email" required>
+  <form id="loginForm" class="login-form" novalidate>
+    <label for="email">Email address
+      <input name="email" id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+    </label>
     <div class="password-field">
-      <input name="password" id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      <label for="password">Password
+        <input name="password" id="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+      </label>
       <button class="toggle-password" type="button" data-target="password" aria-label="Show password">Show</button>
     </div>
 
     <button class="btn" type="submit">Login</button>
   </form>
-  <p class="auth-switch">New to NextHire? <a href="/register.html">Create an account</a></p>
-  <p class="auth-switch"><a href="/forgot-password.html">Forgot password?</a></p>
+  <div class="login-card-foot">
+    <p class="auth-switch">New to NextHire? <a href="register.html">Try it for free</a></p>
+    <p class="auth-switch"><a href="forgot-password.html">Forgot password?</a></p>
+  </div>
 </div>
+</main>
+
+<footer class="app-footer auth-footer">
+  <div class="footer-main">
+    <div class="footer-brand">
+      <a class="footer-logo" href="index.html">NextHire</a>
+      <p>A focused workspace for job search, applications, company review, and hiring operations.</p>
+    </div>
+    <nav class="footer-column" aria-label="Product links">
+      <strong>Product</strong>
+      <a href="search.html">Job search</a>
+      <a href="register.html">Try for free</a>
+      <a href="forgot-password.html">Account recovery</a>
+    </nav>
+    <nav class="footer-column" aria-label="Company links">
+      <strong>Company</strong>
+      <a href="about.html">About</a>
+      <a href="index.html#categories">Categories</a>
+      <a href="index.html#companies">Companies</a>
+    </nav>
+  </div>
+  <div class="footer-bottom">
+    <span>2026 NextHire. Built for modern hiring teams.</span>
+    <span>support@nexthire.local</span>
+  </div>
+</footer>
 
 <script src="js/theme.js"></script>
 <script src="js/api.js"></script>
