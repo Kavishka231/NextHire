@@ -1,10 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from core.dependencies import get_current_user
 from models.job import Job
+from models.search_log import SearchLog
 from services.adzuna_service import (
     search_jobs as adzuna_search_jobs,
     get_job_categories,
@@ -31,8 +32,31 @@ def _cache_jobs(db: Session, jobs: list[dict]) -> None:
         job.salary_min = item.get("salary_min")
         job.salary_max = item.get("salary_max")
         job.url = item.get("url") or ""
+        job.category = item.get("category") or ""
+        job.source = item.get("source") or "adzuna"
 
     db.commit()
+
+
+def _company_job_result(job: Job) -> dict:
+    poster = job.poster
+    return {
+        "external_id": job.external_id,
+        "title": job.title,
+        "company": job.company or "",
+        "location": job.location or "",
+        "description": job.description or "",
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "salary_is_predicted": False,
+        "url": job.application_url or job.url or "",
+        "category": job.category or "Company post",
+        "contract_type": job.employment_type or "",
+        "contract_time": job.employment_type or "",
+        "created": str(job.created_at or ""),
+        "source": job.source,
+        "company_verified": bool(poster and poster.company_verified),
+    }
 
 
 @router.get("/jobs")
@@ -47,7 +71,6 @@ async def search_jobs(
     sort_by: str = "relevance",
     country: str = "gb",
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
 ):
     data = await adzuna_search_jobs(
         keywords=keywords,
@@ -61,17 +84,27 @@ async def search_jobs(
         country=country,
     )
     _cache_jobs(db, data["jobs"])
+    local_query = db.query(Job).filter(Job.source == "company", Job.is_active.is_(True))
+    if keywords:
+        like = f"%{keywords}%"
+        local_query = local_query.filter(or_(Job.title.ilike(like), Job.description.ilike(like), Job.company.ilike(like)))
+    if location:
+        local_query = local_query.filter(Job.location.ilike(f"%{location}%"))
+    local_jobs = [_company_job_result(job) for job in local_query.order_by(Job.created_at.desc()).limit(10).all()]
+    data["jobs"] = local_jobs + data["jobs"]
+    data["total"] = data.get("total", 0) + len(local_jobs)
+    db.add(SearchLog(keywords=keywords, location=location, category=None))
+    db.commit()
     return data
 
 
 @router.get("/categories")
 async def categories(
     country: str = "gb",
-    current_user=Depends(get_current_user),
 ):
     return await get_job_categories(country)
 
 
 @router.get("/")
-async def search(query: str = Query(...), current_user=Depends(get_current_user)):
+async def search(query: str = Query(...)):
     return await adzuna_search_jobs(keywords=query)

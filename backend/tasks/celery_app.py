@@ -1,14 +1,24 @@
 from celery import Celery
-import os
+from app.config import settings
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-
-celery = Celery(
+celery_app = Celery(
     "nexthire",
-    broker=REDIS_URL,
-    backend=REDIS_URL
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
+    include=["tasks.reminder_task"],
 )
 
-@celery.task
-def test_task():
-    return "Celery is working"
+celery_app.conf.update(
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
+    timezone="UTC",
+    enable_utc=True,
+    beat_schedule={
+        # Run daily at 09:00 UTC
+        "send-daily-reminders": {
+            "task":     "tasks.reminder_task.send_reminders",
+            "schedule": 86400,   # every 24 h in seconds
+        },
+    },
+)

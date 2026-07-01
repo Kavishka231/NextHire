@@ -3,19 +3,238 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NextHire</title>
-  <link rel="stylesheet" href="/css/main.css" />
+  <title>NextHire | Job Portal</title>
+  <meta name="description" content="Search jobs, apply with your profile, track applications, and help verified companies review candidates faster." />
+  <link rel="stylesheet" href="css/main.css" />
+  <script src="js/theme.js" defer></script>
 </head>
-<body>
-<script src="/js/api.js"></script>
-<script src="/js/auth.js"></script>
+<body class="marketing-page jobentry-home">
+  <nav class="craft-nav" aria-label="Main navigation">
+    <a class="craft-logo" href="index.html">NextHire</a>
+    <div class="craft-nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="about.html">About</a>
+      <a href="search.html">Jobs</a>
+      <a href="#categories">Categories</a>
+      <a href="#companies">Companies</a>
+    </div>
+    <div class="craft-nav-actions">
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+        <span class="toggle-sun" aria-hidden="true"></span>
+        <span class="toggle-moon" aria-hidden="true"></span>
+      </button>
+      <a href="login.html">Login</a>
+      <a class="craft-register" href="register.html">Try for free</a>
+    </div>
+  </nav>
 
-<script>
-  if (Auth.isLoggedIn()) {
-    window.location.replace("/dashboard.html");
-  } else {
-    window.location.replace("/login.html");
-  }
-</script>
+  <main>
+    <section class="je-hero" aria-label="NextHire job portal">
+      <div class="je-hero-overlay">
+        <div class="je-hero-copy section-reveal">
+          <h1>Find The Perfect Job That You Deserve</h1>
+          <p>Search Adzuna roles and verified company posts, apply with your NextHire profile, and track every opportunity from saved to offer.</p>
+          <div class="je-hero-actions">
+            <a class="btn" href="search.html">Search A Job</a>
+            <a class="btn btn-secondary-je" href="register.html">Find Talent</a>
+          </div>
+        </div>
+      </div>
+      <div class="landing-illustration" aria-hidden="true">
+        <div class="mock-window">
+          <span></span>
+          <strong>Application Pipeline</strong>
+          <div></div><div></div><div></div>
+        </div>
+        <div class="mock-card floating-card">Offer rate <strong>28%</strong></div>
+        <div class="mock-card floating-card alt">12 new matches</div>
+      </div>
+    </section>
+
+    <section class="je-search-band" aria-label="Search jobs">
+      <form id="craftSearchForm" class="je-search-form">
+        <input id="craftKeyword" name="keyword" placeholder="Keyword" />
+        <select id="craftCategory" name="category" aria-label="Category">
+          <option value="">Category</option>
+          <option value="software developer">Software Development</option>
+          <option value="data analyst">Data & Analytics</option>
+          <option value="product manager">Product Management</option>
+          <option value="marketing">Marketing</option>
+          <option value="customer service">Customer Service</option>
+          <option value="human resources">Human Resources</option>
+          <option value="project manager">Project Management</option>
+          <option value="business development">Business Development</option>
+          <option value="sales">Sales</option>
+          <option value="education">Education</option>
+          <option value="design">Design</option>
+        </select>
+        <input id="craftLocation" name="location" placeholder="Location" />
+        <button type="submit">Search</button>
+      </form>
+    </section>
+
+    <section class="je-section section-reveal" id="categories">
+      <div class="je-section-head">
+        <h2>Explore By Category</h2>
+        <p>Start from a focused role family, then refine with live filters on the search page.</p>
+      </div>
+      <div class="je-category-grid">
+        <a class="je-category-card" href="search.html?q=marketing"><span>M</span><h3>Marketing</h3><p>Brand, growth, content, and demand roles</p></a>
+        <a class="je-category-card" href="search.html?q=customer+service"><span>C</span><h3>Customer Service</h3><p>Support, success, and relationship teams</p></a>
+        <a class="je-category-card" href="search.html?q=human+resources"><span>H</span><h3>Human Resource</h3><p>People operations and recruiting roles</p></a>
+        <a class="je-category-card" href="search.html?q=project+manager"><span>P</span><h3>Project Management</h3><p>Delivery, agile, and program leadership</p></a>
+        <a class="je-category-card" href="search.html?q=business+development"><span>B</span><h3>Business Development</h3><p>Partnerships, revenue, and market expansion</p></a>
+        <a class="je-category-card" href="search.html?q=sales"><span>S</span><h3>Sales & Communication</h3><p>Account, SDR, and client-facing careers</p></a>
+        <a class="je-category-card" href="search.html?q=education"><span>E</span><h3>Teaching & Education</h3><p>Training, learning, and academic work</p></a>
+        <a class="je-category-card" href="search.html?q=design"><span>D</span><h3>Design & Creative</h3><p>UX, product design, visual systems, and media</p></a>
+        <a class="je-category-card" href="search.html?q=data+analyst"><span>A</span><h3>Data & Analytics</h3><p>Reporting, insight, operations, and BI roles</p></a>
+        <a class="je-category-card" href="search.html?q=accounting"><span>F</span><h3>Finance & Accounting</h3><p>Accounts, payroll, analysis, and finance teams</p></a>
+        <a class="je-category-card" href="search.html?q=healthcare"><span>N</span><h3>Healthcare</h3><p>Care, nursing, operations, and clinic support</p></a>
+        <a class="je-category-card" href="search.html?q=graduate"><span>G</span><h3>Graduate Roles</h3><p>Entry-level openings and early career programs</p></a>
+      </div>
+    </section>
+
+    <section class="je-section section-reveal">
+      <div class="je-section-head">
+        <h2>Featured Jobs</h2>
+        <p>A quick sample of searches you can launch straight into the live job search workspace.</p>
+      </div>
+      <div class="je-job-list">
+        <a class="je-job-item" href="search.html?q=software+engineer">
+          <div>
+            <h3>Software Engineer</h3>
+            <p>Remote friendly roles across backend, frontend, and platform teams.</p>
+            <span>Full Time - Remote - Competitive salary</span>
+          </div>
+          <strong>Search</strong>
+        </a>
+        <a class="je-job-item" href="search.html?q=product+designer">
+          <div>
+            <h3>Product Designer</h3>
+            <p>Design systems, product UX, research, and portfolio-led positions.</p>
+            <span>Full Time - Hybrid - Creative teams</span>
+          </div>
+          <strong>Search</strong>
+        </a>
+        <a class="je-job-item" href="search.html?q=data+analyst">
+          <div>
+            <h3>Data Analyst</h3>
+            <p>SQL, dashboards, reporting, and business intelligence opportunities.</p>
+            <span>Full Time - London/Remote - Analytics</span>
+          </div>
+          <strong>Search</strong>
+        </a>
+      </div>
+      <div class="je-centered-action">
+        <a class="btn" href="search.html">Browse More Jobs</a>
+      </div>
+    </section>
+
+    <section class="je-section company-strip section-reveal" id="companies">
+      <span>Trusted workflow for modern teams</span>
+      <div class="company-logo-row">
+        <strong>NovaWorks</strong>
+        <strong>BrightLabs</strong>
+        <strong>Cloudlane</strong>
+        <strong>Northstar</strong>
+        <strong>PixelForge</strong>
+      </div>
+    </section>
+
+    <section class="je-section stats-band section-reveal" aria-label="NextHire statistics">
+      <article><strong>44</strong><span>backend tests in the current suite</span></article>
+      <article><strong>3</strong><span>workspaces for candidates, companies, and admins</span></article>
+      <article><strong>100%</strong><span>profile-driven application flow preserved</span></article>
+    </section>
+
+    <section class="je-section je-steps section-reveal">
+      <article><strong>1</strong><h3>Create account</h3><p>Register as a candidate or company and unlock the correct workspace.</p></article>
+      <article><strong>2</strong><h3>Search and apply</h3><p>Inspect job details, save roles, and submit applications with profile autofill.</p></article>
+      <article><strong>3</strong><h3>Track progress</h3><p>Use the board, notes, dashboard stats, reminders, and notifications.</p></article>
+    </section>
+
+    <section class="je-section je-testimonials section-reveal">
+      <div class="je-section-head">
+        <h2>Candidate Feedback</h2>
+        <p>Built for a calmer application process with less scattered information.</p>
+      </div>
+      <div class="je-testimonial-grid">
+        <article>
+          <p>"The saved board makes it obvious what needs a follow-up and what is already moving."</p>
+          <strong>Candidate workspace</strong>
+        </article>
+        <article>
+          <p>"Company review feels connected to the same application flow candidates use."</p>
+          <strong>Employer review</strong>
+        </article>
+        <article>
+          <p>"The profile system saves repeated typing and keeps applications consistent."</p>
+          <strong>Profile autofill</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="je-section final-cta section-reveal">
+      <span class="eyebrow">Ready to move</span>
+      <h2>Search, apply, review, and track in one polished portal.</h2>
+      <div class="je-hero-actions">
+        <a class="btn" href="register.html">Try for free</a>
+        <a class="btn btn-secondary-je" href="search.html">Explore jobs</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="craft-footer">
+    <div class="footer-main">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">NextHire</a>
+        <p>A polished job portal for candidates, approved companies, and admins to keep hiring work organized from discovery to offer.</p>
+      </div>
+      <nav class="footer-column" aria-label="Product links">
+        <strong>Product</strong>
+        <a href="search.html">Job search</a>
+        <a href="register.html">Try for free</a>
+        <a href="login.html">Login</a>
+      </nav>
+      <nav class="footer-column" aria-label="Explore links">
+        <strong>Explore</strong>
+        <a href="#categories">Categories</a>
+        <a href="#companies">Companies</a>
+        <a href="about.html">About</a>
+      </nav>
+      <nav class="footer-column" aria-label="Workspace links">
+        <strong>Workspaces</strong>
+        <a href="profile.html">Candidate profile</a>
+        <a href="employer.html">Company hiring</a>
+        <a href="admin.html">Admin console</a>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>2026 NextHire. Built for modern hiring teams.</span>
+      <span>support@nexthire.local</span>
+    </div>
+  </footer>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => initThemeToggle());
+    document.getElementById("craftSearchForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const keyword = document.getElementById("craftKeyword").value.trim()
+        || document.getElementById("craftCategory").value.trim()
+        || "developer";
+      const location = document.getElementById("craftLocation").value.trim();
+      const params = new URLSearchParams({ q: keyword });
+      if (location) params.set("location", location);
+      window.location.href = `search.html?${params.toString()}`;
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-visible");
+      });
+    }, { threshold: 0.14 });
+
+    document.querySelectorAll(".section-reveal").forEach((el) => observer.observe(el));
+  </script>
 </body>
 </html>

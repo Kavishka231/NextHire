@@ -18,3 +18,5 @@ redis
 
 requests
 httpx
+
+email-validator

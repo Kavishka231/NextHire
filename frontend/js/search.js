@@ -6,20 +6,21 @@ let state = {
   perPage: 20,
   salaryMin: null,
   salaryMax: null,
+  category: "",
   fullTime: null,
   sortBy: "relevance",
   country: "gb",
   total: 0,
   jobs: [],
   loading: false,
-  activeJob: null,
+  relaxedNotice: "",
 };
 
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initSearch() {
-  requireAuth();
-  loadUserInfo();
+  setupPublicNav();
+  if (Auth.isLoggedIn()) loadUserInfo();
 
   // Restore query from URL params
   const params = new URLSearchParams(window.location.search);
@@ -32,11 +33,18 @@ async function initSearch() {
     document.getElementById("searchLocation").value = state.location;
     document.getElementById("filterLocation").value = state.location;
   }
+  if (params.get("category")) {
+    state.category = params.get("category");
+  }
 
   bindEvents();
   loadCategories();
 
-  if (state.keywords) await runSearch();
+  if (!state.keywords) {
+    state.keywords = "software engineer";
+    document.getElementById("searchKeywords").value = state.keywords;
+  }
+  await runSearch();
 }
 
 
@@ -44,11 +52,12 @@ async function initSearch() {
 async function loadUserInfo() {
   try {
     const user = await api.get("/auth/me");
-    const initials = user.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    const displayName = user.company_name || user.full_name || "NextHire";
+    const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
     const el = document.getElementById("navInitials");
     if (el) el.textContent = initials;
     const name = document.getElementById("navUserName");
-    if (name) name.textContent = user.full_name;
+    if (name) name.textContent = displayName;
     const email = document.getElementById("navUserEmail");
     if (email) email.textContent = user.email;
   } catch (_) { }
@@ -92,16 +101,23 @@ function bindEvents() {
     });
   });
 
-  // Drawer overlay click closes drawer
-  document.getElementById("drawerOverlay")?.addEventListener("click", closeDrawer);
-  document.getElementById("drawerClose")?.addEventListener("click", closeDrawer);
-
-  // Keyboard ESC closes drawer
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+  document.querySelectorAll(".starter-card").forEach(card => {
+    card.addEventListener("click", () => {
+      document.querySelectorAll(".starter-card").forEach(item => item.classList.remove("active"));
+      card.classList.add("active");
+      state.keywords = card.dataset.starter || "developer";
+      state.location = card.dataset.location || "";
+      state.page = 1;
+      document.getElementById("searchKeywords").value = state.keywords;
+      document.getElementById("searchLocation").value = state.location;
+      document.getElementById("filterLocation").value = state.location;
+      runSearch();
+    });
+  });
 
   // Mobile filter toggle
   document.getElementById("mobileFilterBtn")?.addEventListener("click", () => {
-    document.querySelector(".search-filters-panel")?.classList.toggle("open");
+    document.querySelector(".filter-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   // Avatar menu
@@ -128,6 +144,7 @@ async function loadCategories() {
       opt.textContent = c.label;
       select.appendChild(opt);
     });
+    if (state.category) select.value = state.category;
   } catch (_) { }
 }
 
@@ -137,6 +154,7 @@ function applyFilters() {
   state.salaryMin = parseInt(document.getElementById("filterSalaryMin")?.value) || null;
   state.salaryMax = parseInt(document.getElementById("filterSalaryMax")?.value) || null;
   state.location = document.getElementById("filterLocation")?.value.trim() || "";
+  state.category = document.getElementById("filterCategory")?.value || "";
   document.getElementById("searchLocation").value = state.location;
 
   const ft = document.querySelector('input[name="contractTime"]:checked')?.value;
@@ -155,10 +173,12 @@ function applyFilters() {
 function resetFilters() {
   state.salaryMin = null;
   state.salaryMax = null;
+  state.category = "";
   state.fullTime = null;
   document.getElementById("filterSalaryMin").value = "";
   document.getElementById("filterSalaryMax").value = "";
   document.getElementById("filterLocation").value = "";
+  document.getElementById("filterCategory").value = "";
   document.querySelectorAll('input[name="contractTime"]').forEach(r => r.checked = false);
   document.querySelector('input[name="contractTime"][value="any"]').checked = true;
   state.page = 1;
@@ -170,11 +190,13 @@ function resetFilters() {
 async function runSearch() {
   if (state.loading) return;
   state.loading = true;
+  state.relaxedNotice = "";
 
   // Update URL without reload
   const urlParams = new URLSearchParams();
   if (state.keywords) urlParams.set("q", state.keywords);
   if (state.location) urlParams.set("location", state.location);
+  if (state.category) urlParams.set("category", state.category);
   window.history.replaceState({}, "", `?${urlParams}`);
 
   showSkeletons();
@@ -182,7 +204,7 @@ async function runSearch() {
 
   try {
     const params = new URLSearchParams({
-      keywords: state.keywords || "developer",
+      keywords: buildSearchKeywords(),
       location: state.location,
       page: state.page,
       results_per_page: state.perPage,
@@ -196,6 +218,19 @@ async function runSearch() {
     const data = await api.get(`/search/jobs?${params}`);
     state.jobs = data.jobs;
     state.total = data.total;
+
+    if (!data.jobs.length && hasSpecificFilters()) {
+      const relaxed = await fetchSimilarJobs();
+      if (relaxed.jobs.length) {
+        state.jobs = relaxed.jobs;
+        state.total = 0;
+        state.relaxedNotice = buildRelaxedNotice();
+        renderJobs(relaxed.jobs);
+        updateResultsHeader(0);
+        renderPagination(0);
+        return;
+      }
+    }
 
     renderJobs(data.jobs);
     updateResultsHeader(data.total);
@@ -228,13 +263,23 @@ function renderJobs(jobs) {
     return;
   }
 
-  container.innerHTML = jobs.map((job, idx) => jobCardHTML(job, idx)).join("");
+  const notice = state.relaxedNotice ? `
+    <div class="search-relaxed-notice">
+      <strong>No exact matches found.</strong>
+      <span>${escHtml(state.relaxedNotice)}</span>
+    </div>
+  ` : "";
+
+  container.innerHTML = notice + jobs.map((job, idx) => jobCardHTML(job, idx)).join("");
 
   // Bind card clicks
   container.querySelectorAll(".job-card").forEach((card, idx) => {
     card.addEventListener("click", (e) => {
       if (e.target.closest(".job-card-save")) return;
-      openDrawer(jobs[idx]);
+      card.classList.add("job-card-opening");
+      setTimeout(() => {
+        window.location.href = `job-detail.html?external_id=${encodeURIComponent(jobs[idx].external_id)}`;
+      }, 180);
     });
   });
 
@@ -257,7 +302,7 @@ function jobCardHTML(job, idx) {
   const timeAgo = formatDate(job.created);
 
   return `
-    <div class="job-card" data-idx="${idx}">
+    <div class="job-card job-card-interactive" data-idx="${idx}" style="--card-delay:${Math.min(idx, 8) * 45}ms">
       <div class="job-card-header">
         <div class="job-company-logo">${initials}</div>
         <div class="job-card-titles">
@@ -266,7 +311,7 @@ function jobCardHTML(job, idx) {
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5"/>
             </svg>
-            ${escHtml(job.company || "Company not listed")}
+            ${escHtml(job.company || "Company not listed")} ${job.company_verified ? `<span class="verified-badge">Verified</span>` : ""}
           </div>
         </div>
         <button class="job-card-save" data-id="${escHtml(job.external_id)}" title="Save job">
@@ -303,6 +348,7 @@ function jobCardHTML(job, idx) {
 
       <div class="job-card-footer">
         <div class="job-tags">
+          ${job.source === "company" ? `<span class="badge badge-blue">Direct post</span>` : ""}
           ${contractBadge}
           ${job.category ? `<span class="tag">${escHtml(job.category)}</span>` : ""}
         </div>
@@ -319,7 +365,7 @@ function showSkeletons() {
     <div class="job-card job-card-skeleton">
       <div class="job-card-header">
         <div class="skel-logo skeleton"></div>
-        <div style="flex:1">
+        <div class="skel-lines">
           <div class="skel-title skeleton"></div>
           <div class="skel-sub skeleton"></div>
         </div>
@@ -336,8 +382,8 @@ function renderError(msg) {
   if (!container) return;
   container.innerHTML = `
     <div class="empty-state">
-      <div class="empty-state-icon" style="background:var(--red-50)">
-        <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--red-500)" stroke-width="1.5">
+      <div class="empty-state-icon error-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
         </svg>
       </div>
@@ -353,6 +399,9 @@ function updateResultsHeader(total) {
   if (!el) return;
   if (total === null) {
     el.innerHTML = `<span class="skeleton" style="width:160px;height:14px;display:inline-block"></span>`;
+  } else if (state.relaxedNotice) {
+    const kw = state.keywords ? `"${escHtml(state.keywords)}"` : "your search";
+    el.innerHTML = `<strong>0</strong> exact results for ${kw}. Showing similar jobs below.`;
   } else {
     const kw = state.keywords ? `"${escHtml(state.keywords)}"` : "all jobs";
     el.innerHTML = `<strong>${total.toLocaleString()}</strong> results for ${kw}`;
@@ -377,8 +426,8 @@ function renderPagination(total) {
 
   const range = pageRange(state.page, totalPages);
   range.forEach(p => {
-    if (p === "…") {
-      html += `<span style="padding:0 4px;color:var(--slate-400)">…</span>`;
+    if (p === "...") {
+      html += `<span style="padding:0 4px;color:var(--muted)">...</span>`;
     } else {
       html += `<button class="page-btn ${p === state.page ? "active" : ""}" onclick="goPage(${p})">${p}</button>`;
     }
@@ -396,9 +445,9 @@ function renderPagination(total) {
 
 function pageRange(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, "…", total];
-  if (current >= total - 3) return [1, "…", total - 4, total - 3, total - 2, total - 1, total];
-  return [1, "…", current - 1, current, current + 1, "…", total];
+  if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
+  if (current >= total - 3) return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "...", current - 1, current, current + 1, "...", total];
 }
 
 function goPage(p) {
@@ -407,43 +456,14 @@ function goPage(p) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-
-// ── Job drawer ────────────────────────────────────────────────────────────────
-function openDrawer(job) {
-  state.activeJob = job;
-  const drawer = document.getElementById("jobDrawer");
-  const overlay = document.getElementById("drawerOverlay");
-
-  document.getElementById("drawerTitle").textContent = job.title;
-  document.getElementById("drawerCompany").textContent = job.company || "Company not listed";
-
-  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_is_predicted);
-  document.getElementById("drawerSalary").textContent = salary || "Not specified";
-  document.getElementById("drawerLocation").textContent = job.location || "Not specified";
-  document.getElementById("drawerType").textContent = formatContractTime(job.contract_time);
-  document.getElementById("drawerPosted").textContent = formatDate(job.created) || "Recently";
-  document.getElementById("drawerDescription").textContent = stripHtml(job.description || "No description provided.");
-  document.getElementById("drawerApplyBtn").href = job.url || "#";
-
-  const logoEl = document.getElementById("drawerLogo");
-  logoEl.textContent = (job.company || "?").slice(0, 2).toUpperCase();
-
-  drawer?.classList.add("open");
-  overlay?.classList.add("open");
-  document.body.style.overflow = "hidden";
-}
-
-function closeDrawer() {
-  document.getElementById("jobDrawer")?.classList.remove("open");
-  document.getElementById("drawerOverlay")?.classList.remove("open");
-  document.body.style.overflow = "";
-  state.activeJob = null;
-}
-
-
-// ── Save job (stub — full implementation in Saved Jobs feature) ───────────────
 async function handleSave(job, btn) {
-  if (!requireAuth()) return;
+  if (!Auth.isLoggedIn()) {
+    showToast("Create a free account to save jobs to your board.", "info");
+    setTimeout(() => {
+      window.location.href = "register.html?next=search.html";
+    }, 900);
+    return;
+  }
   const original = btn?.innerHTML;
   if (btn) {
     btn.disabled = true;
@@ -451,7 +471,7 @@ async function handleSave(job, btn) {
   }
   try {
     await api.post("/saved-jobs", { external_id: job.external_id });
-    showToast("Job saved", "success");
+    showToast("Job saved to your board", "success");
     if (btn) btn.textContent = "Saved";
   } catch (err) {
     showToast(err.detail || "Could not save job", "error");
@@ -461,39 +481,89 @@ async function handleSave(job, btn) {
   }
 }
 
-async function searchJobs() {
-  if (!requireAuth()) return;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setupPublicNav() {
+  const avatar = document.getElementById("navAvatar");
+  const actions = document.querySelector(".app-nav .nav-actions");
+  const navCenter = document.querySelector(".app-nav .nav-center");
+  if (!actions) return;
 
-  const query = document.getElementById("query")?.value.trim() || "developer";
-  const results = document.getElementById("results");
-  if (!results) return;
+  if (Auth.isLoggedIn()) {
+    avatar?.classList.remove("hidden");
+    document.getElementById("publicNavLinks")?.remove();
+    document.getElementById("publicNavCenter")?.remove();
+    return;
+  }
 
-  results.innerHTML = "<p>Searching...</p>";
-  try {
-    const data = await api.get(`/search/jobs?keywords=${encodeURIComponent(query)}`);
-    results.innerHTML = data.jobs.map(job => `
-      <div class="card">
-        <h3>${escHtml(job.title)}</h3>
-        <div class="company">${escHtml(job.company || "Company not listed")} - ${escHtml(job.location || "Remote")}</div>
-        <p>${escHtml(stripHtml(job.description || "")).slice(0, 180)}</p>
-        <button class="btn" data-external-id="${escHtml(job.external_id)}">Save Job</button>
+  avatar?.classList.add("hidden");
+  if (navCenter) {
+    navCenter.innerHTML = `
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="search.html" class="active">Jobs</a>
+      <a href="index.html#categories">Categories</a>
+      <a href="index.html#companies">Companies</a>
+    `;
+  }
+  if (!document.getElementById("publicNavLinks")) {
+    actions.insertAdjacentHTML("beforeend", `
+      <div class="public-nav-links" id="publicNavLinks">
+        <a href="login.html">Login</a>
+        <a class="nav-cta" href="register.html">Try for free</a>
       </div>
-    `).join("");
-
-    results.querySelectorAll("button[data-external-id]").forEach((button, index) => {
-      button.addEventListener("click", () => handleSave(data.jobs[index], button));
-    });
-  } catch (err) {
-    results.innerHTML = `<p>${escHtml(err.detail || "Search failed")}</p>`;
+    `);
   }
 }
 
+function hasSpecificFilters() {
+  return Boolean(state.location || state.salaryMin || state.salaryMax || state.category || state.fullTime !== null);
+}
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+async function fetchSimilarJobs() {
+  const relaxedParams = new URLSearchParams({
+    keywords: state.keywords || categoryLabel() || "developer",
+    page: 1,
+    results_per_page: state.perPage,
+    sort_by: state.sortBy,
+    country: state.country,
+  });
+  return api.get(`/search/jobs?${relaxedParams}`);
+}
+
+function buildRelaxedNotice() {
+  const missing = [];
+  if (state.location) missing.push(`location "${state.location}"`);
+  if (state.category) missing.push(`category "${categoryLabel()}"`);
+  if (state.fullTime === true) missing.push("full-time type");
+  if (state.fullTime === false) missing.push("part-time type");
+  if (state.salaryMin || state.salaryMax) missing.push("salary range");
+  return `The exact ${missing.join(", ")} combination was not found, so here are similar jobs using your main keyword.`;
+}
+
+function buildSearchKeywords() {
+  const terms = [state.keywords, categoryLabel()].filter(Boolean);
+  return terms.length ? Array.from(new Set(terms)).join(" ") : "developer";
+}
+
+function categoryLabel() {
+  if (!state.category) return "";
+  const option = document.querySelector(`#filterCategory option[value="${CSS.escape(state.category)}"]`);
+  return option?.textContent?.replace(/\s+jobs$/i, "").trim() || state.category.replace(/-/g, " ");
+}
+
 function formatSalary(min, max, predicted) {
   const fmt = (n) => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${n}`;
   if (!min && !max) return "";
   const range = min && max ? `${fmt(min)} – ${fmt(max)}`
+    : min ? `From ${fmt(min)}`
+      : `Up to ${fmt(max)}`;
+  return range + (predicted ? " (est.)" : "");
+}
+
+function formatSalary(min, max, predicted) {
+  const fmt = (n) => n >= 1000 ? `GBP ${(n / 1000).toFixed(0)}k` : `GBP ${n}`;
+  if (!min && !max) return "";
+  const range = min && max ? `${fmt(min)} - ${fmt(max)}`
     : min ? `From ${fmt(min)}`
       : `Up to ${fmt(max)}`;
   return range + (predicted ? " (est.)" : "");

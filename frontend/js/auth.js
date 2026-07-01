@@ -1,14 +1,15 @@
-// ── Shared UI helpers ─────────────────────────────────────────────────────────
 function showAlert(id, msg, type = "error") {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
-  el.className = `alert alert-${type} visible`;
+  el.className = `alert ${type} visible`;
 }
 
 function hideAlert(id) {
   const el = document.getElementById(id);
-  if (el) el.className = "alert";
+  if (!el) return;
+  el.textContent = "";
+  el.className = "alert";
 }
 
 const Auth = {
@@ -33,17 +34,18 @@ const Auth = {
 
 function requireAuth() {
   if (!Auth.isLoggedIn()) {
-    window.location.replace("/login.html");
+    window.location.replace("login.html");
     return false;
   }
   return true;
 }
 
 function setLoading(btn, loading) {
+  if (!btn) return;
   if (loading) {
     btn.disabled = true;
     btn.dataset.originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Please wait…';
+    btn.innerHTML = '<span class="spinner"></span> Please wait...';
   } else {
     btn.disabled = false;
     btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
@@ -55,39 +57,145 @@ function togglePasswordVisibility(inputId, btn) {
   if (!input) return;
   const show = input.type === "password";
   input.type = show ? "text" : "password";
-  btn.innerHTML = show
-    ? `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>`
-    : `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+  btn.textContent = show ? "Hide" : "Show";
+  btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
 }
 
+function redirectIfAuthed() {
+  if (Auth.isLoggedIn()) {
+    window.location.replace("dashboard.html");
+  }
+}
 
-// ════════════════════════════════════════════════════════════════════════════
-//  LOGIN PAGE
-// ════════════════════════════════════════════════════════════════════════════
-function initLogin() {
-  redirectIfAuthed();
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
 
-  const form = document.getElementById("loginForm");
-  if (!form) return;
+function isValidUrl(value) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch (_) {
+    return false;
+  }
+}
 
-  // Password toggle
+function bindValidationClear(form) {
+  form.querySelectorAll("input, textarea, select").forEach(field => {
+    field.addEventListener("input", () => clearFieldError(field));
+    field.addEventListener("change", () => clearFieldError(field));
+  });
+}
+
+function clearFormErrors(form) {
+  form.querySelectorAll(".error, .is-invalid").forEach(field => {
+    field.classList.remove("error", "is-invalid");
+    field.removeAttribute("aria-invalid");
+  });
+  form.querySelectorAll(".field-message").forEach(message => message.remove());
+}
+
+function clearFieldError(field) {
+  field.classList.remove("error", "is-invalid");
+  field.removeAttribute("aria-invalid");
+  const id = field.id || field.name || "field";
+  document.getElementById(`${id}-message`)?.remove();
+}
+
+function setFieldError(field, message) {
+  if (!field) return false;
+  const name = field.id || field.name || "field";
+  const messageId = `${name}-message`;
+  field.classList.add("error", "is-invalid");
+  field.setAttribute("aria-invalid", "true");
+  field.setAttribute("aria-describedby", messageId);
+
+  let messageEl = document.getElementById(messageId);
+  if (!messageEl) {
+    messageEl = document.createElement("p");
+    messageEl.id = messageId;
+    messageEl.className = "field-message";
+    const wrapper = field.closest(".password-field") || field;
+    wrapper.insertAdjacentElement("afterend", messageEl);
+  }
+  messageEl.textContent = message;
+  return false;
+}
+
+function requireField(field, message) {
+  return field?.value?.trim() ? true : setFieldError(field, message);
+}
+
+function validateLoginForm(form) {
+  clearFormErrors(form);
+  let valid = true;
+  if (!requireField(form.email, "Enter your email address.")) valid = false;
+  else if (!isValidEmail(form.email.value)) valid = setFieldError(form.email, "Enter a valid email address.");
+  if (!requireField(form.password, "Enter your password.")) valid = false;
+  return valid;
+}
+
+function validateForgotForm(form) {
+  clearFormErrors(form);
+  if (!requireField(form.email, "Enter the email connected to your account.")) return false;
+  return isValidEmail(form.email.value) || setFieldError(form.email, "Enter a valid email address.");
+}
+
+function validateRegisterForm(form) {
+  clearFormErrors(form);
+  let valid = true;
+  if (!requireField(form.fullName, "Enter your full name.")) valid = false;
+  if (!requireField(form.email, "Enter your email address.")) valid = false;
+  else if (!isValidEmail(form.email.value)) valid = setFieldError(form.email, "Enter a valid email address.");
+  if (!requireField(form.password, "Create a password.")) valid = false;
+  else if (form.password.value.length < 8) valid = setFieldError(form.password, "Use at least 8 characters.");
+  if (!requireField(form.confirmPassword, "Confirm your password.")) valid = false;
+  else if (form.password.value !== form.confirmPassword.value) {
+    valid = setFieldError(form.confirmPassword, "Passwords do not match.");
+  }
+
+  if (form.accountType.value === "company") {
+    if (!requireField(form.companyName, "Enter your company name.")) valid = false;
+    if (form.companyWebsite?.value?.trim() && !isValidUrl(form.companyWebsite.value.trim())) {
+      valid = setFieldError(form.companyWebsite, "Use a full URL like https://company.com.");
+    }
+    if (!requireField(form.companyDescription, "Tell us what your company does.")) valid = false;
+  }
+  return valid;
+}
+
+function initPasswordToggles() {
   document.querySelectorAll(".toggle-password").forEach(btn => {
     btn.addEventListener("click", () => togglePasswordVisibility(btn.dataset.target, btn));
   });
+}
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+function initLogin() {
+  redirectIfAuthed();
+  const form = document.getElementById("loginForm");
+  if (!form) return;
+
+  initPasswordToggles();
+  bindValidationClear(form);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     hideAlert("alertBox");
+    if (!validateLoginForm(form)) {
+      showAlert("alertBox", "Check the highlighted fields and try again.");
+      return;
+    }
+
     const btn = form.querySelector("button[type=submit]");
     setLoading(btn, true);
-
     try {
       const data = await api.post("/auth/login", {
         email: form.email.value.trim(),
         password: form.password.value,
       });
       Auth.setTokens(data.access_token, data.refresh_token);
-      window.location.href = "/dashboard.html";
+      window.location.href = "dashboard.html";
     } catch (err) {
       showAlert("alertBox", err.detail || "Login failed. Please try again.");
     } finally {
@@ -96,64 +204,59 @@ function initLogin() {
   });
 }
 
-function redirectIfAuthed() {
-  if (Auth.isLoggedIn()) {
-    window.location.replace("/dashboard.html");
-  }
-}
-// ════════════════════════════════════════════════════════════════════════════
-//  REGISTER PAGE
-// ════════════════════════════════════════════════════════════════════════════
 function initRegister() {
   redirectIfAuthed();
-
   const form = document.getElementById("registerForm");
   if (!form) return;
 
-  document.querySelectorAll(".toggle-password").forEach(btn => {
-    btn.addEventListener("click", () => togglePasswordVisibility(btn.dataset.target, btn));
+  initPasswordToggles();
+  bindValidationClear(form);
+
+  document.querySelectorAll('input[name="accountType"]').forEach(input => {
+    input.addEventListener("change", () => {
+      document.getElementById("companyFields")?.classList.toggle("hidden", input.value !== "company" || !input.checked);
+      clearFormErrors(form);
+    });
   });
 
-  // Live password confirmation check
-  const confirmInput = document.getElementById("confirmPassword");
-  if (confirmInput) {
-    confirmInput.addEventListener("input", () => {
-      const err = document.getElementById("confirmError");
-      if (confirmInput.value && confirmInput.value !== form.password.value) {
-        confirmInput.classList.add("error");
-        if (err) err.classList.add("visible");
-      } else {
-        confirmInput.classList.remove("error");
-        if (err) err.classList.remove("visible");
-      }
-    });
-  }
+  form.confirmPassword?.addEventListener("input", () => {
+    const err = document.getElementById("confirmError");
+    const mismatch = form.confirmPassword.value && form.confirmPassword.value !== form.password.value;
+    form.confirmPassword.classList.toggle("error", mismatch);
+    err?.classList.toggle("visible", mismatch);
+  });
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     hideAlert("alertBox");
-
-    // Client-side validation
-    if (form.password.value !== confirmInput?.value) {
-      showAlert("alertBox", "Passwords do not match.");
+    document.getElementById("confirmError")?.classList.remove("visible");
+    if (!validateRegisterForm(form)) {
+      showAlert("alertBox", "Check the highlighted fields and try again.");
       return;
     }
 
     const btn = form.querySelector("button[type=submit]");
     setLoading(btn, true);
-
     try {
+      const isCompany = form.accountType.value === "company";
       await api.post("/auth/register", {
         email: form.email.value.trim(),
         full_name: form.fullName.value.trim(),
         password: form.password.value,
+        account_type: form.accountType.value,
+        company_name: form.companyName?.value.trim() || null,
+        company_website: form.companyWebsite?.value.trim() || null,
+        company_description: form.companyDescription?.value.trim() || null,
       });
       showAlert("alertBox",
-        "Account created! Check your email to verify your account, then log in.",
+        isCompany
+          ? "Company request submitted. Admin approval is required before posting jobs."
+          : "Account created! Taking you to job search.",
         "success"
       );
       form.reset();
-      setTimeout(() => { window.location.href = "/login.html"; }, 3000);
+      const next = new URLSearchParams(window.location.search).get("next") || "search.html?q=developer";
+      setTimeout(() => { window.location.href = isCompany ? "login.html" : next; }, 1200);
     } catch (err) {
       showAlert("alertBox", err.detail || "Registration failed. Please try again.");
     } finally {
@@ -162,26 +265,24 @@ function initRegister() {
   });
 }
 
-
-// ════════════════════════════════════════════════════════════════════════════
-//  FORGOT PASSWORD PAGE
-// ════════════════════════════════════════════════════════════════════════════
 function initForgotPassword() {
   const form = document.getElementById("forgotForm");
   if (!form) return;
+  bindValidationClear(form);
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     hideAlert("alertBox");
+    if (!validateForgotForm(form)) {
+      showAlert("alertBox", "Enter a valid email address to continue.");
+      return;
+    }
+
     const btn = form.querySelector("button[type=submit]");
     setLoading(btn, true);
-
     try {
       await api.post("/auth/forgot-password", { email: form.email.value.trim() });
-      showAlert("alertBox",
-        "If that email is registered, a reset link is on its way.",
-        "success"
-      );
+      showAlert("alertBox", "If that email is registered, a reset link is on its way.", "success");
     } catch (err) {
       showAlert("alertBox", err.detail || "Something went wrong.");
     } finally {
@@ -190,17 +291,15 @@ function initForgotPassword() {
   });
 }
 
-
-// ════════════════════════════════════════════════════════════════════════════
-//  LOGOUT (callable from any page)
-// ════════════════════════════════════════════════════════════════════════════
 async function logout() {
   try {
     const refreshToken = Auth.getRefresh();
     if (refreshToken) {
       await api.post("/auth/logout", { refresh_token: refreshToken });
     }
-  } catch (_) { /* best effort */ }
+  } catch (_) {
+    /* best effort */
+  }
   Auth.clearTokens();
-  window.location.href = "/login.html";
+  window.location.href = "login.html";
 }

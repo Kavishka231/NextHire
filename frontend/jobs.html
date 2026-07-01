@@ -1,40 +1,107 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Jobs</title>
-  <link rel="stylesheet" href="css/main.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Board | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
 </head>
-<body>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
 
-<nav>
-  <div class="logo">NextHire</div>
-  <div>
-    <a href="search.html">Search</a>
-    <a href="dashboard.html">Dashboard</a>
+<nav class="app-nav" aria-label="Main navigation">
+  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html" class="active">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/employer.html">Post jobs</a>
+    <a href="/admin.html">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">
+      <span id="navInitials">NH</span>
+      <div class="nav-avatar-menu" id="avatarMenu">
+        <div class="avatar-menu-head">
+          <div id="navUserName"></div>
+          <small id="navUserEmail"></small>
+        </div>
+        <a href="/dashboard.html">Dashboard</a>
+        <button class="menu-danger" onclick="logout()">Sign out</button>
+      </div>
+    </div>
   </div>
 </nav>
 
-<div class="container">
+<main class="jobs-page">
+  <section class="jobs-header glass-card">
+    <div class="jobs-header-left">
+      <span class="eyebrow">Premium pipeline</span>
+      <h1>My Job Board</h1>
+      <p><span id="totalJobsCount">0</span> jobs tracked across every stage.</p>
+    </div>
+    <div class="jobs-header-right">
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" id="viewKanban" type="button">Board</button>
+        <button class="view-toggle-btn" id="viewList" type="button">List</button>
+      </div>
+      <a href="/search.html" class="btn">Add jobs</a>
+    </div>
+  </section>
 
-  <h2>Latest Jobs</h2>
-
-  <div class="grid" id="jobsContainer"></div>
-
-</div>
-<div class="card">
-  <h3>Frontend Developer</h3>
-  <div class="company">Google • Remote</div>
-
-  <div class="tags">
-    <div class="tag">Full-time</div>
-    <div class="tag">Senior</div>
-    <div class="tag">Remote</div>
+  <div class="status-tabs" id="statusTabsBar" style="display:none">
+    <button class="status-tab active" data-status="all">All <span class="status-tab-count">0</span></button>
+    <button class="status-tab" data-status="saved">Saved <span class="status-tab-count">0</span></button>
+    <button class="status-tab" data-status="applied">Applied <span class="status-tab-count">0</span></button>
+    <button class="status-tab" data-status="interview">Interview <span class="status-tab-count">0</span></button>
+    <button class="status-tab" data-status="offer">Offer <span class="status-tab-count">0</span></button>
+    <button class="status-tab" data-status="rejected">Rejected <span class="status-tab-count">0</span></button>
   </div>
 
-  <br />
-  <button class="btn">Save Job</button>
+  <div class="kanban-board" id="kanbanBoard"></div>
+  <div id="listViewContainer" class="list-view" style="display:none"></div>
+</main>
+
+<aside class="notes-panel glass-card" id="notesPanel">
+  <button class="drawer-close" id="notesCloseBtn" type="button" aria-label="Close notes">×</button>
+  <h2 id="notesPanelTitle">Notes</h2>
+  <p id="notesPanelSubtitle">Notes and reminders</p>
+  <div class="notes-list" id="notesList"></div>
+  <textarea id="noteInput" placeholder="Add a note..."></textarea>
+  <button class="btn" id="noteSubmitBtn" type="button">Add note</button>
+</aside>
+<div class="drawer-overlay" id="notesOverlay"></div>
+
+<div class="confirm-modal-overlay" id="confirmOverlay">
+  <div class="confirm-modal glass-card">
+    <h3>Remove this job?</h3>
+    <p><strong id="deleteJobTitle"></strong> will be removed from your board.</p>
+    <div class="confirm-modal-actions">
+      <button class="btn btn-ghost" id="cancelDeleteBtn" type="button">Cancel</button>
+      <button class="btn" id="confirmDeleteBtn" type="button">Remove</button>
+    </div>
+  </div>
 </div>
 
-<script src="js/jobs.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/jobs.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  document.getElementById("navAvatar")?.addEventListener("click", e => {
+    e.stopPropagation();
+    document.getElementById("avatarMenu")?.classList.toggle("open");
+  });
+  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
+  initJobs();
+</script>
 </body>
 </html>

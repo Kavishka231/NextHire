@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="app-nav" aria-label="Main navigation">
+  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html" class="active">Profile</a>
+    <a href="/employer.html">Post jobs</a>
+    <a href="/admin.html">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">
+      <span id="navInitials">NH</span>
+      <div class="nav-avatar-menu" id="avatarMenu">
+        <div class="avatar-menu-head">
+          <div id="navUserName"></div>
+          <small id="navUserEmail"></small>
+        </div>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/search.html">Search jobs</a>
+        <a href="/jobs.html">My board</a>
+        <button class="menu-danger" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="profile-shell">
+  <section class="profile-hero glass-card">
+    <div class="profile-avatar" id="profileAvatar">NH</div>
+    <div>
+      <span class="eyebrow">Recruiter-ready profile</span>
+      <h1 id="profileName">Your profile</h1>
+      <p id="profileHeadline">Add a headline, skills, resume, and preferences so NextHire can personalize your search.</p>
+      <div class="open-banner" id="openBanner">Open to work</div>
+    </div>
+    <div class="completion-card">
+      <strong id="completionPercent">0%</strong>
+      <span>Profile complete</span>
+      <div class="completion-track"><span id="completionBar"></span></div>
+    </div>
+  </section>
+
+  <section class="profile-tabs glass-card" aria-label="Profile workspace navigation">
+    <a class="active" href="/profile.html">
+      <strong>Edit profile</strong>
+      <span>Update resume, skills, preferences, and contact details.</span>
+    </a>
+    <a href="/jobs.html">
+      <strong>View board</strong>
+      <span>Open saved jobs, status columns, notes, and applications.</span>
+    </a>
+  </section>
+
+  <section class="profile-layout">
+    <aside class="profile-sidebar glass-card">
+      <div class="panel-title">Missing checklist</div>
+      <div id="missingChecklist" class="checklist"></div>
+    </aside>
+
+    <form id="profileForm" class="profile-form">
+      <section class="profile-section glass-card">
+        <div class="profile-section-head">
+          <div>
+            <span class="eyebrow">Basic identity</span>
+            <h2>Public profile</h2>
+          </div>
+          <label class="toggle-row"><input type="checkbox" name="open_to_work" /> Open to work</label>
+        </div>
+        <div class="form-grid">
+          <label>Profile photo URL<input name="avatar_url" placeholder="https://..." /></label>
+          <label>Professional headline<input name="headline" placeholder="Final Year CS Student" /></label>
+          <label>Location<input name="location" placeholder="Colombo, Sri Lanka" /></label>
+          <label>About / bio<textarea name="bio" rows="4" placeholder="2-3 sentences about yourself"></textarea></label>
+        </div>
+      </section>
+
+      <section class="profile-section glass-card">
+        <div class="profile-section-head">
+          <div>
+            <span class="eyebrow">Contact info</span>
+            <h2>How recruiters reach you</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>Email<input id="profileEmail" disabled /></label>
+          <label>Phone<input name="phone" placeholder="+94..." /></label>
+          <label>LinkedIn URL<input name="linkedin_url" placeholder="https://linkedin.com/in/..." /></label>
+          <label>GitHub URL<input name="github_url" placeholder="https://github.com/..." /></label>
+          <label>Portfolio URL<input name="portfolio_url" placeholder="https://..." /></label>
+        </div>
+      </section>
+
+      <section class="profile-section glass-card">
+        <div class="profile-section-head">
+          <div>
+            <span class="eyebrow">Career preferences</span>
+            <h2>Personalize job search</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>Desired job title<input name="desired_job_title" placeholder="Frontend Developer" /></label>
+          <label>Preferred job type
+            <select name="preferred_job_type">
+              <option value="">Choose</option>
+              <option>full time</option>
+              <option>part time</option>
+              <option>internship</option>
+              <option>freelance</option>
+            </select>
+          </label>
+          <label>Preferred work style
+            <select name="preferred_work_style">
+              <option value="">Choose</option>
+              <option>remote</option>
+              <option>hybrid</option>
+              <option>on-site</option>
+            </select>
+          </label>
+          <label>Preferred locations<input name="preferred_locations" placeholder="Remote, Colombo, London" /></label>
+          <label>Expected salary min<input name="expected_salary_min" type="number" placeholder="80000" /></label>
+          <label>Expected salary max<input name="expected_salary_max" type="number" placeholder="140000" /></label>
+          <label>Industries of interest<input name="industries" placeholder="SaaS, AI, FinTech" /></label>
+          <label>Available from<input name="available_from" type="date" /></label>
+          <label class="toggle-row"><input type="checkbox" name="available_immediately" /> Available immediately</label>
+        </div>
+      </section>
+
+      <section class="profile-section glass-card">
+        <div class="profile-section-head">
+          <div>
+            <span class="eyebrow">CV / resume</span>
+            <h2>Resume attachment</h2>
+          </div>
+          <a class="btn btn-ghost hidden" id="resumeDownload" download>Download resume</a>
+        </div>
+        <div class="form-grid">
+          <label>Upload PDF resume<input id="resumeUpload" type="file" accept="application/pdf" /></label>
+          <label>Resume URL<input name="resume_url" placeholder="https://..." /></label>
+          <label>Stored file name<input name="resume_file_name" placeholder="resume.pdf" /></label>
+          <label class="toggle-row"><input type="checkbox" name="resume_visible_to_recruiters" /> Visible to recruiters</label>
+        </div>
+      </section>
+
+      <div id="dynamicSections"></div>
+
+      <div class="profile-savebar glass-card">
+        <button class="btn" type="submit">Save profile</button>
+        <span id="profileSaveHint">Changes are saved to your account.</span>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/profile.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  initProfile();
+</script>
+</body>
+</html>

@@ -1,31 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register</title>
   <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
+<body class="auth-page">
 
 <nav>
-  <div class="logo">NextHire</div>
+  <a class="logo brand-mark" href="index.html"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="search.html">Search</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+    <a href="login.html">Login</a>
+  </div>
 </nav>
 
-<div class="form-box">
+<main class="auth-layout">
+  <section class="auth-visual" aria-hidden="true">
+    <span class="eyebrow">Candidate and company access</span>
+    <h1>One hiring portal for both sides of the pipeline.</h1>
+    <div class="auth-illustration">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </section>
+
+<div class="form-box auth-shell">
+  <span class="eyebrow">Start free</span>
   <h2>Create Account</h2>
+  <p class="auth-copy">Build your premium job search workspace in seconds.</p>
   <div id="alertBox" class="alert"></div>
 
-  <form id="registerForm">
+  <form id="registerForm" novalidate>
     <input name="fullName" id="name" placeholder="Name" required>
-    <input name="email" id="email" placeholder="Email" required>
-    <input name="password" id="password" type="password" placeholder="Password" required>
+    <input name="email" id="email" type="email" placeholder="Email" required>
+    <div class="account-choice">
+      <label><input type="radio" name="accountType" value="candidate" checked> Candidate</label>
+      <label><input type="radio" name="accountType" value="company"> Company</label>
+    </div>
+    <div class="company-fields hidden" id="companyFields">
+      <input name="companyName" placeholder="Company name">
+      <input name="companyWebsite" placeholder="Company website">
+      <textarea name="companyDescription" rows="3" placeholder="What does your company do?"></textarea>
+      <p class="auth-copy">Company accounts stay pending until an admin approves them.</p>
+    </div>
+    <div class="password-field">
+      <input name="password" id="password" type="password" placeholder="Password" autocomplete="new-password" required>
+      <button class="toggle-password" type="button" data-target="password" aria-label="Show password">Show</button>
+    </div>
+    <div class="password-field">
+      <input name="confirmPassword" id="confirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
+      <button class="toggle-password" type="button" data-target="confirmPassword" aria-label="Show confirmed password">Show</button>
+    </div>
+    <p class="field-error" id="confirmError">Passwords do not match.</p>
 
     <button class="btn" type="submit">Register</button>
   </form>
+  <p class="auth-switch">Already registered? <a href="login.html">Login instead</a></p>
+  <p class="auth-switch">Hiring? Choose company above and request approval.</p>
 </div>
+</main>
 
-<script src="js/auth.js"></script>
+<footer class="app-footer auth-footer">
+  <div class="footer-main">
+    <div class="footer-brand">
+      <a class="footer-logo" href="index.html">NextHire</a>
+      <p>A focused workspace for candidates and companies to move from role discovery to reviewed applications.</p>
+    </div>
+    <nav class="footer-column" aria-label="Product links">
+      <strong>Product</strong>
+      <a href="search.html">Job search</a>
+      <a href="login.html">Login</a>
+      <a href="forgot-password.html">Account recovery</a>
+    </nav>
+    <nav class="footer-column" aria-label="Company links">
+      <strong>Company</strong>
+      <a href="about.html">About</a>
+      <a href="index.html#categories">Categories</a>
+      <a href="index.html#companies">Companies</a>
+    </nav>
+  </div>
+  <div class="footer-bottom">
+    <span>2026 NextHire. Built for modern hiring teams.</span>
+    <span>support@nexthire.local</span>
+  </div>
+</footer>
+
+<script src="js/theme.js"></script>
 <script src="js/api.js"></script>
+<script src="js/auth.js"></script>
 <script>
+  initThemeToggle();
   initRegister();
 </script>
 </body>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Details | NextHire</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body class="app-page">
+<div class="toast-container" id="toastContainer"></div>
+<nav class="app-nav">
+  <a class="logo brand-mark" href="/"><span class="brand-icon">N</span>NextHire</a>
+  <div class="nav-center">
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/search.html">Search</a>
+    <a href="/jobs.html">Board</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/employer.html">Post jobs</a>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
+      <span class="toggle-sun" aria-hidden="true"></span>
+      <span class="toggle-moon" aria-hidden="true"></span>
+    </button>
+  </div>
+</nav>
+<main class="detail-shell" id="jobDetailRoot">
+  <div class="chart-empty">Loading job details...</div>
+</main>
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-shell.js"></script>
+<script src="/js/job-detail.js"></script>
+<script>
+  initThemeToggle();
+  initAppShell();
+  initJobDetail();
+</script>
+</body>
+</html>
