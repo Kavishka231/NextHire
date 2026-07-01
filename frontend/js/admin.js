@@ -17,7 +17,7 @@ async function loadAdmin() {
   } catch (err) {
     if (err.status === 403) {
       showToast("Admin access required. Login with the dev admin account.", "error");
-      setTimeout(() => { window.location.href = "/login.html"; }, 1200);
+      setTimeout(() => { window.location.href = "login.html"; }, 1200);
       return;
     }
     showToast(err.detail || "Could not load admin dashboard", "error");

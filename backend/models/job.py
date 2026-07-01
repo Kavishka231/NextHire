@@ -17,6 +17,8 @@ class Job(Base):
     company      = Column(String)
     location     = Column(String)
     description  = Column(String)
+    role_overview = Column(Text, nullable=True)
+    company_description = Column(Text, nullable=True)
     salary_min   = Column(Integer)
     salary_max   = Column(Integer)
     url          = Column(String)
@@ -29,6 +31,8 @@ class Job(Base):
     experience_level = Column(String, nullable=True)
     requirements = Column(Text, nullable=True)
     responsibilities = Column(Text, nullable=True)
+    additional_qualifications = Column(Text, nullable=True)
+    schedule_expectations = Column(Text, nullable=True)
     benefits = Column(Text, nullable=True)
     application_email = Column(String, nullable=True)
     application_url = Column(String, nullable=True)
@@ -38,3 +42,4 @@ class Job(Base):
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     poster = relationship("User", back_populates="posted_jobs")
+    applications = relationship("JobApplication", back_populates="job", cascade="all, delete-orphan")

@@ -64,6 +64,8 @@ class CompanyJobCreate(BaseModel):
     company: str = ""
     location: str = ""
     description: str = ""
+    role_overview: str = ""
+    company_description: str = ""
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
     category: str = ""
@@ -72,6 +74,8 @@ class CompanyJobCreate(BaseModel):
     experience_level: str = ""
     requirements: str = ""
     responsibilities: str = ""
+    additional_qualifications: str = ""
+    schedule_expectations: str = ""
     benefits: str = ""
     application_email: str = ""
     application_url: str = ""
