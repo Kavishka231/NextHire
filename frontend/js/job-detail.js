@@ -381,7 +381,3 @@ function showToast(msg, type = "info") {
 function escHtml(str) {
   return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-
-function escAttr(str) {
-  return escHtml(str).replace(/'/g, "&#39;");
-}

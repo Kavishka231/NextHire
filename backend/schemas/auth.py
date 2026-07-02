@@ -37,38 +37,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
 class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-class VerifyEmailRequest(BaseModel):
-    token: str
-
-
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def password_strength(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
-
-
-class MessageResponse(BaseModel):
-    message: str
 
 
 class UserResponse(BaseModel):

@@ -1,4 +1,3 @@
-// ── State ─────────────────────────────────────────────────────────────────────
 let state = {
   keywords: "",
   location: "",
@@ -17,10 +16,7 @@ let state = {
 };
 
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 async function initSearch() {
-  setupPublicNav();
-  if (Auth.isLoggedIn()) loadUserInfo();
 
   // Restore query from URL params
   const params = new URLSearchParams(window.location.search);
@@ -48,23 +44,6 @@ async function initSearch() {
 }
 
 
-// ── Load current user info for nav ────────────────────────────────────────────
-async function loadUserInfo() {
-  try {
-    const user = await api.get("/auth/me");
-    const displayName = user.company_name || user.full_name || "NextHire";
-    const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-    const el = document.getElementById("navInitials");
-    if (el) el.textContent = initials;
-    const name = document.getElementById("navUserName");
-    if (name) name.textContent = displayName;
-    const email = document.getElementById("navUserEmail");
-    if (email) email.textContent = user.email;
-  } catch (_) { }
-}
-
-
-// ── Event binding ─────────────────────────────────────────────────────────────
 function bindEvents() {
   // Hero search form
   document.getElementById("heroSearchForm")?.addEventListener("submit", (e) => {
@@ -120,19 +99,9 @@ function bindEvents() {
     document.querySelector(".filter-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  // Avatar menu
-  document.getElementById("navAvatar")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    document.getElementById("avatarMenu")?.classList.toggle("open");
-  });
-
-  document.addEventListener("click", () => {
-    document.getElementById("avatarMenu")?.classList.remove("open");
-  });
 }
 
 
-// ── Load job categories into filter dropdown ───────────────────────────────────
 async function loadCategories() {
   try {
     const cats = await api.get(`/search/categories?country=${state.country}`);
@@ -149,7 +118,6 @@ async function loadCategories() {
 }
 
 
-// ── Apply sidebar filters ──────────────────────────────────────────────────────
 function applyFilters() {
   state.salaryMin = parseInt(document.getElementById("filterSalaryMin")?.value) || null;
   state.salaryMax = parseInt(document.getElementById("filterSalaryMax")?.value) || null;
@@ -186,7 +154,6 @@ function resetFilters() {
 }
 
 
-// ── Core search ───────────────────────────────────────────────────────────────
 async function runSearch() {
   if (state.loading) return;
   state.loading = true;
@@ -243,7 +210,6 @@ async function runSearch() {
 }
 
 
-// ── Render jobs ───────────────────────────────────────────────────────────────
 function renderJobs(jobs) {
   const container = document.getElementById("jobsList");
   if (!container) return;
@@ -393,7 +359,6 @@ function renderError(msg) {
 }
 
 
-// ── Results header ────────────────────────────────────────────────────────────
 function updateResultsHeader(total) {
   const el = document.getElementById("resultsCount");
   if (!el) return;
@@ -409,7 +374,6 @@ function updateResultsHeader(total) {
 }
 
 
-// ── Pagination ────────────────────────────────────────────────────────────────
 function renderPagination(total) {
   const container = document.getElementById("pagination");
   if (!container) return;
@@ -481,40 +445,6 @@ async function handleSave(job, btn) {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function setupPublicNav() {
-  const avatar = document.getElementById("navAvatar");
-  const actions = document.querySelector(".app-nav .nav-actions");
-  const navCenter = document.querySelector(".app-nav .nav-center");
-  if (!actions) return;
-
-  if (Auth.isLoggedIn()) {
-    avatar?.classList.remove("hidden");
-    document.getElementById("publicNavLinks")?.remove();
-    document.getElementById("publicNavCenter")?.remove();
-    return;
-  }
-
-  avatar?.classList.add("hidden");
-  if (navCenter) {
-    navCenter.innerHTML = `
-      <a href="index.html">Home</a>
-      <a href="about.html">About</a>
-      <a href="search.html" class="active">Jobs</a>
-      <a href="index.html#categories">Categories</a>
-      <a href="index.html#companies">Companies</a>
-    `;
-  }
-  if (!document.getElementById("publicNavLinks")) {
-    actions.insertAdjacentHTML("beforeend", `
-      <div class="public-nav-links" id="publicNavLinks">
-        <a href="login.html">Login</a>
-        <a class="nav-cta" href="register.html">Try for free</a>
-      </div>
-    `);
-  }
-}
-
 function hasSpecificFilters() {
   return Boolean(state.location || state.salaryMin || state.salaryMax || state.category || state.fullTime !== null);
 }
@@ -552,15 +482,6 @@ function categoryLabel() {
 }
 
 function formatSalary(min, max, predicted) {
-  const fmt = (n) => n >= 1000 ? `£${(n / 1000).toFixed(0)}k` : `£${n}`;
-  if (!min && !max) return "";
-  const range = min && max ? `${fmt(min)} – ${fmt(max)}`
-    : min ? `From ${fmt(min)}`
-      : `Up to ${fmt(max)}`;
-  return range + (predicted ? " (est.)" : "");
-}
-
-function formatSalary(min, max, predicted) {
   const fmt = (n) => n >= 1000 ? `GBP ${(n / 1000).toFixed(0)}k` : `GBP ${n}`;
   if (!min && !max) return "";
   const range = min && max ? `${fmt(min)} - ${fmt(max)}`
@@ -581,12 +502,6 @@ function formatDate(iso) {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function formatContractTime(ct) {
-  return ct === "full_time" ? "Full-time"
-    : ct === "part_time" ? "Part-time"
-      : "Not specified";
-}
-
 function stripHtml(html) {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -600,7 +515,6 @@ function escHtml(str) {
 }
 
 
-// ── Toast notifications ───────────────────────────────────────────────────────
 function showToast(msg, type = "info") {
   const container = document.getElementById("toastContainer");
   if (!container) return;

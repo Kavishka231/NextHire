@@ -116,8 +116,3 @@ async def categories(
     country: str = "gb",
 ):
     return await get_job_categories(country)
-
-
-@router.get("/")
-async def search(query: str = Query(...)):
-    return await adzuna_search_jobs(keywords=query)

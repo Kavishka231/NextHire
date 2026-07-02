@@ -92,11 +92,6 @@
 <script>
   initThemeToggle();
   initAppShell();
-  document.getElementById("navAvatar")?.addEventListener("click", e => {
-    e.stopPropagation();
-    document.getElementById("avatarMenu")?.classList.toggle("open");
-  });
-  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
   initJobs();
 </script>
 </body>

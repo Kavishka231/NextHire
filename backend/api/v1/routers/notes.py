@@ -5,7 +5,6 @@ from app.database import get_db
 from core.dependencies import get_current_user
 from models.user import User
 from schemas.note import CreateNoteRequest, UpdateNoteRequest, NoteResponse
-from schemas.auth import MessageResponse
 from services.note_service import (
     create_note, get_notes_for_job, update_note, delete_note,
 )

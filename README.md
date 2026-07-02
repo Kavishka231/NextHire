@@ -63,7 +63,6 @@ NextHire/
     Dockerfile               Optional frontend image
     nginx.conf               Nginx config with API proxy
   docker-compose.yml         Local multi-service environment
-  requirements.txt           Root-level requirements placeholder
   README.md                  Project documentation
 ```
 

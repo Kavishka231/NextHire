@@ -131,11 +131,6 @@ function renderDynamicSections() {
 function bindProfileEvents() {
   document.getElementById("profileForm")?.addEventListener("submit", saveProfile);
   document.getElementById("resumeUpload")?.addEventListener("change", handleResumeUpload);
-  document.getElementById("navAvatar")?.addEventListener("click", e => {
-    e.stopPropagation();
-    document.getElementById("avatarMenu")?.classList.toggle("open");
-  });
-  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
 }
 
 async function loadProfile() {

@@ -60,7 +60,6 @@
       navLink("index.html", "Home", currentPage),
       navLink("about.html", "About", currentPage),
       navLink("search.html", "Jobs", currentPage),
-      navLink("index.html#categories", "Categories", currentPage),
       navLink("index.html#companies", "Companies", currentPage),
     ].join("");
   }
@@ -126,13 +125,30 @@
           <button class="menu-danger" onclick="logout()">Sign out</button>
         </div>
     `;
+    avatar.setAttribute("role", "button");
+    avatar.setAttribute("tabindex", "0");
+    avatar.setAttribute("aria-haspopup", "menu");
+    avatar.setAttribute("aria-expanded", "false");
     if (avatar.dataset.bound === "true") return;
     avatar.dataset.bound = "true";
-    avatar.addEventListener("click", event => {
+    const toggleAvatarMenu = event => {
       event.stopPropagation();
-      document.getElementById("avatarMenu")?.classList.toggle("open");
+      const menu = document.getElementById("avatarMenu");
+      const nextOpen = !menu?.classList.contains("open");
+      menu?.classList.toggle("open", nextOpen);
+      avatar.setAttribute("aria-expanded", String(nextOpen));
+    };
+    avatar.addEventListener("click", toggleAvatarMenu);
+    avatar.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleAvatarMenu(event);
+      }
     });
-    document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
+    document.addEventListener("click", () => {
+      document.getElementById("avatarMenu")?.classList.remove("open");
+      avatar.setAttribute("aria-expanded", "false");
+    });
   }
 
   async function applyProfileAvatar(user) {
@@ -164,22 +180,32 @@
         </button>
         <div class="notification-panel glass-card" id="notificationPanel">
           <div class="notification-head">
-            <strong>Notifications</strong>
-            <button type="button" id="markNotificationsRead">Mark read</button>
+            <div>
+              <strong>Notifications</strong>
+              <span>Recent updates and activity</span>
+            </div>
+            <button type="button" id="markNotificationsRead">Mark all read</button>
           </div>
           <div id="notificationList" class="notification-list"></div>
         </div>
       </div>
     `);
-    document.getElementById("notificationBell")?.addEventListener("click", event => {
+    const bell = document.getElementById("notificationBell");
+    bell?.addEventListener("click", event => {
       event.stopPropagation();
-      document.getElementById("notificationPanel")?.classList.toggle("open");
+      const panel = document.getElementById("notificationPanel");
+      const nextOpen = !panel?.classList.contains("open");
+      panel?.classList.toggle("open", nextOpen);
+      bell.setAttribute("aria-expanded", String(nextOpen));
     });
     document.getElementById("markNotificationsRead")?.addEventListener("click", async () => {
       await api.patch("/notifications/read-all", {});
       await refreshNotifications();
     });
-    document.addEventListener("click", () => document.getElementById("notificationPanel")?.classList.remove("open"));
+    document.addEventListener("click", () => {
+      document.getElementById("notificationPanel")?.classList.remove("open");
+      bell?.setAttribute("aria-expanded", "false");
+    });
   }
 
   function renderAppFooter() {
@@ -232,10 +258,13 @@
     if (list) {
       list.innerHTML = notes.length ? notes.slice(0, 8).map(note => `
         <button class="notification-item ${note.is_read ? "" : "unread"}" type="button" data-note-id="${note.id}">
-          <strong>${escapeHtml(note.title)}</strong>
-          <span>${escapeHtml(note.message)}</span>
+          <div class="notification-item-top">
+            <strong>${escapeHtml(note.title)}</strong>
+            <span class="notification-pill">${note.is_read ? "Read" : "New"}</span>
+          </div>
+          <span class="notification-message">${escapeHtml(note.message)}</span>
         </button>
-      `).join("") : `<div class="chart-empty">No notifications yet.</div>`;
+      `).join("") : `<div class="notification-empty"><strong>All caught up</strong><span>No notifications yet.</span></div>`;
       list.querySelectorAll("[data-note-id]").forEach(item => {
         item.addEventListener("click", async () => {
           await api.patch(`/notifications/${item.dataset.noteId}/read`, {});
