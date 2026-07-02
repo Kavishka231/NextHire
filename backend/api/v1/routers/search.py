@@ -29,11 +29,16 @@ def _cache_jobs(db: Session, jobs: list[dict]) -> None:
         job.company = item.get("company") or ""
         job.location = item.get("location") or ""
         job.description = item.get("description") or ""
+        job.role_overview = item.get("role_overview") or ""
+        job.company_description = item.get("company_description") or ""
         job.salary_min = item.get("salary_min")
         job.salary_max = item.get("salary_max")
         job.url = item.get("url") or ""
         job.category = item.get("category") or ""
         job.source = item.get("source") or "adzuna"
+        job.employment_type = item.get("contract_time") or item.get("contract_type") or ""
+        job.work_style = "Remote" if "remote" in (job.location or "").lower() else ""
+        job.experience_level = item.get("experience_level") or ""
 
     db.commit()
 
@@ -46,6 +51,8 @@ def _company_job_result(job: Job) -> dict:
         "company": job.company or "",
         "location": job.location or "",
         "description": job.description or "",
+        "role_overview": job.role_overview or "",
+        "company_description": job.company_description or "",
         "salary_min": job.salary_min,
         "salary_max": job.salary_max,
         "salary_is_predicted": False,
@@ -53,6 +60,12 @@ def _company_job_result(job: Job) -> dict:
         "category": job.category or "Company post",
         "contract_type": job.employment_type or "",
         "contract_time": job.employment_type or "",
+        "experience_level": job.experience_level or "",
+        "requirements": job.requirements or "",
+        "responsibilities": job.responsibilities or "",
+        "additional_qualifications": job.additional_qualifications or "",
+        "schedule_expectations": job.schedule_expectations or "",
+        "benefits": job.benefits or "",
         "created": str(job.created_at or ""),
         "source": job.source,
         "company_verified": bool(poster and poster.company_verified),
@@ -103,8 +116,3 @@ async def categories(
     country: str = "gb",
 ):
     return await get_job_categories(country)
-
-
-@router.get("/")
-async def search(query: str = Query(...)):
-    return await adzuna_search_jobs(keywords=query)

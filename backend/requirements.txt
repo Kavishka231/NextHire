@@ -11,12 +11,11 @@ pydantic-settings
 python-dotenv
 
 python-jose[cryptography]
-passlib[bcrypt]
+passlib
 
 celery
 redis
 
-requests
 httpx
 
 email-validator

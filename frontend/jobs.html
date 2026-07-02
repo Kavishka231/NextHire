@@ -4,20 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Board | NextHire</title>
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/kanban.css" />
 </head>
 <body class="app-page">
 <div class="toast-container" id="toastContainer"></div>
 
 <nav class="app-nav" aria-label="Main navigation">
-  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <a class="logo brand-mark" href="dashboard.html"><span class="brand-icon">N</span>NextHire</a>
   <div class="nav-center">
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/search.html">Search</a>
-    <a href="/jobs.html" class="active">Board</a>
-    <a href="/profile.html">Profile</a>
-    <a href="/employer.html">Post jobs</a>
-    <a href="/admin.html">Admin</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="search.html">Search</a>
+    <a href="jobs.html" class="active">Board</a>
+    <a href="profile.html">Profile</a>
+    <a href="employer.html">Post jobs</a>
+    <a href="admin.html">Admin</a>
   </div>
   <div class="nav-actions">
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
@@ -31,7 +32,7 @@
           <div id="navUserName"></div>
           <small id="navUserEmail"></small>
         </div>
-        <a href="/dashboard.html">Dashboard</a>
+        <a href="dashboard.html">Dashboard</a>
         <button class="menu-danger" onclick="logout()">Sign out</button>
       </div>
     </div>
@@ -46,15 +47,11 @@
       <p><span id="totalJobsCount">0</span> jobs tracked across every stage.</p>
     </div>
     <div class="jobs-header-right">
-      <div class="view-toggle">
-        <button class="view-toggle-btn active" id="viewKanban" type="button">Board</button>
-        <button class="view-toggle-btn" id="viewList" type="button">List</button>
-      </div>
-      <a href="/search.html" class="btn">Add jobs</a>
+      <a href="search.html" class="btn">Add jobs</a>
     </div>
   </section>
 
-  <div class="status-tabs" id="statusTabsBar" style="display:none">
+  <div class="status-tabs" id="statusTabsBar">
     <button class="status-tab active" data-status="all">All <span class="status-tab-count">0</span></button>
     <button class="status-tab" data-status="saved">Saved <span class="status-tab-count">0</span></button>
     <button class="status-tab" data-status="applied">Applied <span class="status-tab-count">0</span></button>
@@ -63,8 +60,7 @@
     <button class="status-tab" data-status="rejected">Rejected <span class="status-tab-count">0</span></button>
   </div>
 
-  <div class="kanban-board" id="kanbanBoard"></div>
-  <div id="listViewContainer" class="list-view" style="display:none"></div>
+  <div id="listViewContainer" class="list-view"></div>
 </main>
 
 <aside class="notes-panel glass-card" id="notesPanel">
@@ -88,19 +84,14 @@
   </div>
 </div>
 
-<script src="/js/theme.js"></script>
-<script src="/js/api.js"></script>
-<script src="/js/auth.js"></script>
-<script src="/js/app-shell.js"></script>
-<script src="/js/jobs.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app-shell.js"></script>
+<script src="js/jobs.js"></script>
 <script>
   initThemeToggle();
   initAppShell();
-  document.getElementById("navAvatar")?.addEventListener("click", e => {
-    e.stopPropagation();
-    document.getElementById("avatarMenu")?.classList.toggle("open");
-  });
-  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
   initJobs();
 </script>
 </body>

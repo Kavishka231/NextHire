@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import get_db
-from api.v1.routers import auth, search, jobs, saved_jobs, notes, stats, profile, admin, notifications, company
+from api.v1.routers import auth, search, jobs, saved_jobs, notes, stats, profile, admin, notifications, company, applications
 from services.admin_seed import ensure_default_admin
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.include_router(profile.router,    prefix="/api/v1")
 app.include_router(admin.router,      prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(company.router,    prefix="/api/v1")
+app.include_router(applications.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

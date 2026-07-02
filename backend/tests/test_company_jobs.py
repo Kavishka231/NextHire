@@ -61,6 +61,10 @@ def test_admin_approves_company_and_company_posts_job(client):
             "title": "Frontend Engineer",
             "location": "Remote",
             "description": "Build polished UI",
+            "role_overview": "Own the frontend experience for customer-facing hiring workflows.",
+            "company_description": "Example Labs builds hiring tools for modern teams.",
+            "additional_qualifications": "Design system experience is a strong interview advantage.",
+            "schedule_expectations": "Five working days with one flexible remote day.",
             "application_email": "hr@example.com",
         },
         headers=company_headers(client, company),
@@ -73,6 +77,9 @@ def test_admin_approves_company_and_company_posts_job(client):
     detail = client.get(f"/api/v1/jobs/external/{body['external_id']}")
     assert detail.status_code == 200
     assert detail.json()["title"] == "Frontend Engineer"
+    assert detail.json()["role_overview"] == "Own the frontend experience for customer-facing hiring workflows."
+    assert detail.json()["additional_qualifications"] == "Design system experience is a strong interview advantage."
+    assert detail.json()["schedule_expectations"] == "Five working days with one flexible remote day."
 
 
 def test_company_profile_update_sets_pending(client):
@@ -89,3 +96,46 @@ def test_company_profile_update_sets_pending(client):
     assert res.status_code == 200
     assert res.json()["company_status"] == "pending"
     assert res.json()["company_verified"] is False
+
+
+def test_candidate_applies_and_company_reviews_application(client):
+    company = register_company(client)
+    pending = client.get("/api/v1/admin/companies/pending", headers=admin_headers(client)).json()
+    company_id = next(user["id"] for user in pending if user["email"] == company["email"])
+    client.patch(f"/api/v1/admin/companies/{company_id}/approval", json={"approved": True}, headers=admin_headers(client))
+    company_auth = company_headers(client, company)
+
+    created = client.post(
+        "/api/v1/jobs/company",
+        json={"title": "Python Developer", "location": "Remote", "description": "Build backend services"},
+        headers=company_auth,
+    )
+    assert created.status_code == 200
+
+    candidate = {
+        "email": "candidate@example.com",
+        "full_name": "Candidate User",
+        "password": "password123",
+    }
+    client.post("/api/v1/auth/register", json=candidate)
+    candidate_auth = company_headers(client, candidate)
+    submitted = client.post(
+        "/api/v1/applications",
+        json={
+            "external_id": created.json()["external_id"],
+            "use_profile": False,
+            "applicant_name": "Candidate User",
+            "applicant_email": "candidate@example.com",
+            "cover_letter": "I can build this well.",
+        },
+        headers=candidate_auth,
+    )
+    assert submitted.status_code == 200
+    assert submitted.json()["job_title"] == "Python Developer"
+
+    notes = client.get("/api/v1/notifications", headers=company_auth).json()
+    assert any(note["kind"] == "job_application" for note in notes)
+
+    applications = client.get("/api/v1/applications/company", headers=company_auth)
+    assert applications.status_code == 200
+    assert applications.json()[0]["applicant_email"] == "candidate@example.com"

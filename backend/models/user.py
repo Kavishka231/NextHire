@@ -31,3 +31,4 @@ class User(Base):
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
     profile = relationship("UserProfile", back_populates="user", cascade="all, delete-orphan", uselist=False)
     posted_jobs = relationship("Job", back_populates="poster")
+    applications = relationship("JobApplication", back_populates="applicant")

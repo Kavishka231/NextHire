@@ -7,4 +7,4 @@ from models.note import Note                # noqa
 from models.profile import UserProfile      # noqa
 from models.search_log import SearchLog     # noqa
 from models.notification import Notification  # noqa
-from models.notification import Notification  # noqa
+from models.application import JobApplication  # noqa

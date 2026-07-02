@@ -4,20 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard | NextHire</title>
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="css/main.css" />
 </head>
 <body class="app-page">
 <div class="toast-container" id="toastContainer"></div>
 
 <nav class="app-nav" aria-label="Main navigation">
-  <a class="logo brand-mark" href="/dashboard.html"><span class="brand-icon">N</span>NextHire</a>
+  <a class="logo brand-mark" href="dashboard.html"><span class="brand-icon">N</span>NextHire</a>
   <div class="nav-center">
-    <a href="/dashboard.html" class="active">Dashboard</a>
-    <a href="/search.html">Search</a>
-    <a href="/jobs.html">Board</a>
-    <a href="/profile.html">Profile</a>
-    <a href="/employer.html">Post jobs</a>
-    <a href="/admin.html">Admin</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="search.html">Search</a>
+    <a href="jobs.html">Board</a>
+    <a href="profile.html">Profile</a>
+    <a href="employer.html">Post jobs</a>
+    <a href="admin.html">Admin</a>
   </div>
   <div class="nav-actions">
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark and light theme">
@@ -31,10 +31,10 @@
           <div id="navUserName"></div>
           <small id="navUserEmail"></small>
         </div>
-        <a href="/search.html">Search jobs</a>
-        <a href="/jobs.html">My board</a>
-        <a href="/profile.html">Profile</a>
-        <a href="/admin.html">Admin</a>
+        <a href="search.html">Search jobs</a>
+        <a href="jobs.html">My board</a>
+        <a href="profile.html">Profile</a>
+        <a href="admin.html">Admin</a>
         <button class="menu-danger" onclick="logout()">Sign out</button>
       </div>
     </div>
@@ -49,8 +49,8 @@
       <p>Your pipeline, follow-ups, interviews, and offers in one polished view.</p>
     </div>
     <div class="hero-actions">
-      <a href="/search.html" class="btn">Search jobs</a>
-      <a href="/jobs.html" class="btn btn-ghost">Open board</a>
+      <a href="search.html" class="btn">Search jobs</a>
+      <a href="jobs.html" class="btn btn-ghost">Open board</a>
     </div>
   </section>
 
@@ -98,27 +98,22 @@
   <section>
     <div class="section-title">Quick actions</div>
     <div class="quick-actions">
-      <a href="/search.html" class="quick-action-card glass-card"><strong>Search jobs</strong><span>Find new opportunities</span></a>
-      <a href="/jobs.html" class="quick-action-card glass-card"><strong>My board</strong><span>Manage the pipeline</span></a>
-      <a href="/profile.html" class="quick-action-card glass-card"><strong>Complete profile</strong><span>Improve job recommendations</span></a>
-      <a href="/search.html?q=python+developer" class="quick-action-card glass-card"><strong>Quick search</strong><span>Python developer roles</span></a>
+      <a href="search.html" class="quick-action-card glass-card"><strong>Search jobs</strong><span>Find new opportunities</span></a>
+      <a href="jobs.html" class="quick-action-card glass-card"><strong>My board</strong><span>Manage the pipeline</span></a>
+      <a href="profile.html" class="quick-action-card glass-card"><strong>Complete profile</strong><span>Improve job recommendations</span></a>
+      <a href="search.html?q=python+developer" class="quick-action-card glass-card"><strong>Quick search</strong><span>Python developer roles</span></a>
     </div>
   </section>
 </main>
 
-<script src="/js/theme.js"></script>
-<script src="/js/api.js"></script>
-<script src="/js/auth.js"></script>
-<script src="/js/app-shell.js"></script>
-<script src="/js/stats.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app-shell.js"></script>
+<script src="js/stats.js"></script>
 <script>
   initThemeToggle();
   initAppShell();
-  document.getElementById("navAvatar")?.addEventListener("click", e => {
-    e.stopPropagation();
-    document.getElementById("avatarMenu")?.classList.toggle("open");
-  });
-  document.addEventListener("click", () => document.getElementById("avatarMenu")?.classList.remove("open"));
   initDashboard();
 </script>
 </body>
