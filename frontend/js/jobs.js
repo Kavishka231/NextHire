@@ -94,14 +94,6 @@ function closeNotes() {
   document.getElementById("notesOverlay")?.classList.remove("open");
 }
 
-function escHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function escAttr(str) {
   return escHtml(str).replace(/'/g, "&#39;");
 }
