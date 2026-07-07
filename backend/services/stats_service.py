@@ -121,3 +121,9 @@ def _get_salary_averages(db: Session, user: User) -> dict:
         "avg_salary_min": avg_min,
         "avg_salary_max": avg_max,
     }
+
+
+class StatsService:
+    @staticmethod
+    def get_dashboard_stats(db: Session, user: User) -> dict:
+        return get_stats(db, user)
