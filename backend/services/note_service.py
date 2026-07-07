@@ -8,6 +8,7 @@ from schemas.note import CreateNoteRequest, UpdateNoteRequest
 
 
 def _verify_saved_job(db: Session, user: User, saved_job_id: int) -> SavedJob:
+    # Similar to saved-job service lookups, but kept local for note ownership checks.
     sj = db.query(SavedJob).filter(
         SavedJob.id == saved_job_id,
         SavedJob.user_id == user.id,
