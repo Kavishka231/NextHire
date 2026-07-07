@@ -4,18 +4,7 @@ async function initDashboard() {
 }
 
 async function loadDashboardUser() {
-  try {
-    const user = await api.get("/auth/me");
-    const fullName = user.full_name || "User";
-    const initials = fullName.split(" ").map(part => part[0]).join("").toUpperCase().slice(0, 2);
-
-    setText("navInitials", initials);
-    setText("navUserName", fullName);
-    setText("navUserEmail", user.email);
-    setText("heroGreeting", `Welcome, ${fullName.split(" ")[0]}`);
-  } catch (err) {
-    if (err.status === 401) logout();
-  }
+  await loadCurrentUserNav({ greetingId: "heroGreeting" });
 }
 
 async function loadStats() {
@@ -106,11 +95,6 @@ function renderActivity(rows) {
   const el = document.getElementById("recentActivity");
   if (!el) return;
   el.innerHTML = rows.map(row => `<div class="activity-row"><span>${row.label}</span><strong>${row.count}</strong></div>`).join("");
-}
-
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
 }
 
 function formatMoney(value) {

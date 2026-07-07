@@ -9,6 +9,14 @@ from schemas.auth import RegisterRequest, LoginRequest
 from services.notification_service import notify_admins
 
 
+def _token_response(access_token: str, refresh_token: str) -> dict:
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
 class AuthService:
 
     @staticmethod
@@ -67,11 +75,7 @@ class AuthService:
         db.add(refresh)
         db.commit()
 
-        return {
-            "access_token": token,
-            "refresh_token": refresh.token,
-            "token_type": "bearer"
-        }
+        return _token_response(token, refresh.token)
 
     @staticmethod
     def refresh(db: Session, token: str):
@@ -87,11 +91,10 @@ class AuthService:
         if not user:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-        return {
-            "access_token": create_access_token({"user_id": user.id, "email": user.email}),
-            "refresh_token": refresh.token,
-            "token_type": "bearer",
-        }
+        return _token_response(
+            create_access_token({"user_id": user.id, "email": user.email}),
+            refresh.token,
+        )
 
     @staticmethod
     def logout(db: Session, token: str):

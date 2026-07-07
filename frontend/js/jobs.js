@@ -21,16 +21,7 @@ function bindBoardControls() {
 }
 
 async function loadJobsUser() {
-  try {
-    const user = await api.get("/auth/me");
-    const fullName = user.full_name || "User";
-    const initials = fullName.split(" ").map(part => part[0]).join("").toUpperCase().slice(0, 2);
-    setText("navInitials", initials);
-    setText("navUserName", fullName);
-    setText("navUserEmail", user.email);
-  } catch (err) {
-    if (err.status === 401) logout();
-  }
+  await loadCurrentUserNav();
 }
 
 async function loadJobs() {
@@ -101,19 +92,6 @@ function openNotes(savedJobId, title) {
 function closeNotes() {
   document.getElementById("notesPanel")?.classList.remove("open");
   document.getElementById("notesOverlay")?.classList.remove("open");
-}
-
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
-}
-
-function escHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 function escAttr(str) {

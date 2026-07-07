@@ -58,6 +58,7 @@ class SavedJobService:
 
     @staticmethod
     def update_status(db, user_id: int, saved_job_id: int, status_value: str):
+        # Similar to note ownership checks, but kept local for saved-job status semantics.
         saved_job = (
             db.query(SavedJob)
             .filter(SavedJob.id == saved_job_id, SavedJob.user_id == user_id)
@@ -75,6 +76,7 @@ class SavedJobService:
     @staticmethod
     def delete_saved_job(db, user_id: int, job_id: int):
 
+        # Similar to note ownership checks, but kept local because deletion uses job_id.
         saved_job = (
             db.query(SavedJob)
             .filter(
