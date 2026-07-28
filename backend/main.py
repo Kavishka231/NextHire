@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from sqlalchemy import text
@@ -6,6 +9,11 @@ from app.config import settings
 from app.database import engine, get_db
 from api.v1.routers import auth, search, jobs, saved_jobs, notes, stats, profile, admin, notifications, company, applications
 from services.admin_seed import ensure_default_admin
+from app.observability import configure_logging, configure_sentry
+
+configure_logging()
+configure_sentry()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -34,6 +42,24 @@ app.include_router(admin.router,      prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(company.router,    prefix="/api/v1")
 app.include_router(applications.router, prefix="/api/v1")
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Unexpected API error",
+        extra={
+            "event": "unexpected_api_error",
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": 500,
+            "exception_type": type(exc).__name__,
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 
 @app.on_event("startup")

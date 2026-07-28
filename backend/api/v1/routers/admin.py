@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import logging
 import socket
 from urllib.parse import urlparse
 
@@ -23,6 +24,7 @@ from services.notification_service import create_notification
 from tasks.email_task import send_admin_email, send_broadcast_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+logger = logging.getLogger(__name__)
 
 
 class AdminEmailRequest(BaseModel):
@@ -119,6 +121,12 @@ def approve_company(
         "company_approval",
     )
     db.commit()
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": "approve_company" if approved else "reject_company",
+        "actor_user_id": admin.id,
+        "target_user_id": user.id,
+    })
     return _user_row(db, user)
 
 
@@ -149,6 +157,12 @@ def update_user(
     if not user.is_active or user.banned_until:
         AuthService.revoke_all_sessions(db, user.id)
     db.commit()
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": "update_user_security",
+        "actor_user_id": admin.id,
+        "target_user_id": user.id,
+    })
     db.refresh(user)
     return _user_row(db, user)
 
@@ -166,6 +180,12 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
     db.commit()
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": "delete_user",
+        "actor_user_id": admin.id,
+        "target_user_id": user_id,
+    })
     return {"message": "User deleted"}
 
 
@@ -185,6 +205,12 @@ def reset_password(
     user.hashed_password = hash_password(new_password)
     AuthService.revoke_all_sessions(db, user.id)
     db.commit()
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": "reset_user_password",
+        "actor_user_id": admin.id,
+        "target_user_id": user.id,
+    })
     return {"message": "Password reset"}
 
 
@@ -208,6 +234,12 @@ def create_admin(
     db.add(user)
     db.commit()
     db.refresh(user)
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": "create_admin",
+        "actor_user_id": admin.id,
+        "target_user_id": user.id,
+    })
     return _user_row(db, user)
 
 

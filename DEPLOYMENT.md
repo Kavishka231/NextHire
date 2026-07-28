@@ -33,6 +33,7 @@ characters, deploy once, then set `SEED_ADMIN=false` and redeploy.
 ```sh
 docker compose config --quiet
 docker compose build --pull
+docker compose --profile operations run --rm migrate
 docker compose up -d
 docker compose ps
 curl --fail http://localhost:5500/
@@ -42,6 +43,11 @@ curl --fail http://localhost:5500/api/v1/jobs
 After deployment, confirm Alembic reports migration `009` as the current head.
 Migration `009` intentionally expires refresh tokens created by earlier
 versions, so existing users must sign in again after this release.
+
+Migrations are a controlled release step and are not run automatically by API
+container startup. Before running them, take or verify a database snapshot.
+Stop the release if the migration command fails; do not start the new
+application image against a partially migrated database.
 
 Only the frontend port is published. PostgreSQL, Redis, the API, and the worker
 remain on the private Compose network. Put the frontend behind a platform load
@@ -55,3 +61,46 @@ balancer or TLS reverse proxy and expose HTTPS only.
 - Keep image/version updates in reviewed pull requests and run CI before release.
 - Roll back by deploying the previous application image. Database migrations
   must be reviewed for backward compatibility before every release.
+
+### Monitoring and logs
+
+Set `SENTRY_DSN` to enable Sentry for FastAPI and Celery. Set `APP_RELEASE` to
+the deployed Git commit and start with `SENTRY_TRACES_SAMPLE_RATE=0`; increase
+sampling only after reviewing volume and cost. Sentry is configured without
+default PII and strips headers, cookies, request bodies, and query strings.
+
+Application logs are JSON on stdout for collection by the hosting platform.
+They intentionally exclude passwords, authorization headers, cookies, reset
+tokens, refresh tokens, SMTP credentials, request bodies, and email addresses.
+Restrict log access and define retention in the hosting platform.
+
+Configure an external uptime service to check:
+
+- `GET https://your-domain.example/health` every minute for process liveness;
+- `GET https://your-domain.example/ready` every minute for PostgreSQL and Redis
+  readiness.
+
+Alert after two consecutive failures and route alerts to an actively monitored
+channel. `/ready` should return HTTP 503/500 when a dependency is unavailable;
+do not treat `/health` alone as deployment readiness.
+
+### Database backup and restore
+
+Use managed PostgreSQL with encryption, private networking, automated daily
+backups, point-in-time recovery, and retention that matches business needs.
+Before every migration, create a provider snapshot and record its identifier in
+the release notes.
+
+Test restoration at least quarterly into an isolated, non-production database:
+
+1. Restore the selected snapshot or point in time.
+2. Connect using a read-only validation account.
+3. Confirm Alembic version, table counts, and representative application data.
+4. Run `/ready` and the deployment smoke tests against the isolated restore.
+5. Delete the temporary restore after recording the result.
+
+For a failed application release, redeploy the previous image. Prefer a
+forward-fix for schema problems. Do not run `alembic downgrade` in production
+unless the specific downgrade was tested against a copy of production data.
+If a destructive migration fails, stop writes and restore the pre-migration
+snapshot according to the provider runbook.
