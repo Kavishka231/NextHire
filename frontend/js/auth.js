@@ -13,27 +13,25 @@ function hideAlert(id) {
 }
 
 const Auth = {
-  setTokens(accessToken, refreshToken) {
-    if (accessToken) localStorage.setItem("token", accessToken);
-    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
+  setTokens(token) {
+    setAccessToken(token);
   },
   getToken() {
-    return localStorage.getItem("token");
-  },
-  getRefresh() {
-    return localStorage.getItem("refresh_token");
+    return getToken();
   },
   clearTokens() {
+    setAccessToken(null);
+    // Remove values left by pre-cookie versions of NextHire.
     localStorage.removeItem("token");
     localStorage.removeItem("refresh_token");
   },
   isLoggedIn() {
-    return Boolean(localStorage.getItem("token"));
+    return Boolean(getToken());
   },
 };
 
-function requireAuth() {
-  if (!Auth.isLoggedIn()) {
+async function requireAuth() {
+  if (!Auth.isLoggedIn() && !(await refreshAccessToken())) {
     window.location.replace("login.html");
     return false;
   }
@@ -61,10 +59,12 @@ function togglePasswordVisibility(inputId, btn) {
   btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
 }
 
-function redirectIfAuthed() {
-  if (Auth.isLoggedIn()) {
+async function redirectIfAuthed() {
+  if (Auth.isLoggedIn() || await refreshAccessToken()) {
     window.location.replace("dashboard.html");
+    return true;
   }
+  return false;
 }
 
 function isValidEmail(value) {
@@ -171,8 +171,8 @@ function initPasswordToggles() {
   });
 }
 
-function initLogin() {
-  redirectIfAuthed();
+async function initLogin() {
+  if (await redirectIfAuthed()) return;
   const form = document.getElementById("loginForm");
   if (!form) return;
 
@@ -194,7 +194,7 @@ function initLogin() {
         email: form.email.value.trim(),
         password: form.password.value,
       });
-      Auth.setTokens(data.access_token, data.refresh_token);
+      Auth.setTokens(data.access_token);
       window.location.href = "dashboard.html";
     } catch (err) {
       showAlert("alertBox", err.detail || "Login failed. Please try again.");
@@ -338,10 +338,7 @@ function initResetPassword() {
 
 async function logout() {
   try {
-    const refreshToken = Auth.getRefresh();
-    if (refreshToken) {
-      await api.post("/auth/logout", { refresh_token: refreshToken });
-    }
+    await api.post("/auth/logout");
   } catch (_) {
     /* best effort */
   }

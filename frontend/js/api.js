@@ -1,7 +1,13 @@
 const BASE_URL = window.NEXTHIRE_API_URL || "/api/v1";
+let accessToken = null;
+let refreshPromise = null;
 
 function getToken() {
-  return localStorage.getItem("token");
+  return accessToken;
+}
+
+function setAccessToken(token) {
+  accessToken = token || null;
 }
 
 async function request(endpoint, options = {}) {
@@ -20,9 +26,10 @@ async function rawRequest(endpoint, options = {}, allowRefresh = true) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
-  if (response.status === 401 && allowRefresh && localStorage.getItem("refresh_token")) {
+  if (response.status === 401 && allowRefresh) {
     const refreshed = await refreshAccessToken();
     if (refreshed) return rawRequest(endpoint, options, false);
   }
@@ -48,21 +55,30 @@ async function rawRequest(endpoint, options = {}, allowRefresh = true) {
 }
 
 async function refreshAccessToken() {
-  try {
-    const response = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: localStorage.getItem("refresh_token") }),
-    });
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
 
-    if (!response.ok) return false;
-    const data = await response.json();
-    if (data.access_token) localStorage.setItem("token", data.access_token);
-    if (data.refresh_token) localStorage.setItem("refresh_token", data.refresh_token);
-    return Boolean(data.access_token);
-  } catch (_) {
-    return false;
-  }
+      if (!response.ok) {
+        setAccessToken(null);
+        return false;
+      }
+      const data = await response.json();
+      setAccessToken(data.access_token);
+      return Boolean(data.access_token);
+    } catch (_) {
+      setAccessToken(null);
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
 }
 
 const api = {

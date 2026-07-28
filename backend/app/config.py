@@ -19,17 +19,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REFRESH_COOKIE_NAME: str = "nexthire_refresh"
+    REFRESH_COOKIE_SECURE: bool = False
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str = "sqlite:///./nexthire.db"
     REDIS_URL: str = "redis://localhost:6379/0"
-    LOG_LEVEL: str = "INFO"
-    SENTRY_DSN: str = ""
-    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
-    APP_RELEASE: str = ""
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
-    DB_POOL_TIMEOUT_SECONDS: int = 30
-    DB_POOL_RECYCLE_SECONDS: int = 1800
+    AUTH_RATE_LIMIT_PER_MINUTE: int = 10
+    REGISTER_RATE_LIMIT_PER_MINUTE: int = 5
+    EMAIL_RATE_LIMIT_PER_HOUR: int = 10
     PUBLIC_APP_URL: str = "http://localhost:5500"
     CORS_ORIGINS: str = "http://localhost:5500,http://127.0.0.1:5500"
 
@@ -59,12 +56,16 @@ class Settings(BaseSettings):
                 raise ValueError("Production SECRET_KEY must be a strong value of at least 32 characters")
             if self.DATABASE_URL.startswith("sqlite"):
                 raise ValueError("Production DATABASE_URL must use a managed database")
+            if not self.REFRESH_COOKIE_SECURE:
+                raise ValueError("Production refresh cookies must be secure")
         if self.SEED_ADMIN and (not self.ADMIN_EMAIL or len(self.ADMIN_PASSWORD) < 12):
             raise ValueError("Admin bootstrap requires ADMIN_EMAIL and a password of at least 12 characters")
-        if self.DB_POOL_SIZE < 1 or self.DB_MAX_OVERFLOW < 0:
-            raise ValueError("Database pool settings are invalid")
-        if not 0 <= self.SENTRY_TRACES_SAMPLE_RATE <= 1:
-            raise ValueError("Sentry traces sample rate must be between 0 and 1")
+        if min(
+            self.AUTH_RATE_LIMIT_PER_MINUTE,
+            self.REGISTER_RATE_LIMIT_PER_MINUTE,
+            self.EMAIL_RATE_LIMIT_PER_HOUR,
+        ) < 1:
+            raise ValueError("Rate limits must be positive integers")
         return self
 
 

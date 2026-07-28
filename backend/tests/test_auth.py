@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from models.password_reset_token import PasswordResetToken
 from models.refresh_token import RefreshToken
+from app.config import settings
 from tests.conftest import TestingSessionLocal
 
 REGISTER_URL      = "/api/v1/auth/register"
@@ -60,8 +61,11 @@ def test_login_success(client):
     assert res.status_code == 200
     body = res.json()
     assert "access_token"  in body
-    assert "refresh_token" in body
+    assert "refresh_token" not in body
     assert body["token_type"] == "bearer"
+    assert res.cookies.get(settings.REFRESH_COOKIE_NAME)
+    assert "HttpOnly" in res.headers["set-cookie"]
+    assert "SameSite=lax" in res.headers["set-cookie"]
 
 
 def test_login_wrong_password(client):
@@ -101,24 +105,22 @@ def test_refresh_token(client, registered_user):
         "email": registered_user["email"],
         "password": registered_user["password"],
     })
-    refresh_token = login_res.json()["refresh_token"]
+    refresh_token = login_res.cookies.get(settings.REFRESH_COOKIE_NAME)
 
-    res = client.post(REFRESH_URL, json={"refresh_token": refresh_token})
+    res = client.post(REFRESH_URL)
     assert res.status_code == 200
     assert "access_token" in res.json()
-    assert res.json()["refresh_token"] != refresh_token
+    assert "refresh_token" not in res.json()
+    rotated_token = res.cookies.get(settings.REFRESH_COOKIE_NAME)
+    assert rotated_token != refresh_token
 
     # Rotation makes the submitted token unusable.
-    assert client.post(
-        REFRESH_URL,
-        json={"refresh_token": refresh_token},
-    ).status_code == 401
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, refresh_token)
+    assert client.post(REFRESH_URL).status_code == 401
 
     # The newly issued token can itself be rotated.
-    assert client.post(
-        REFRESH_URL,
-        json={"refresh_token": res.json()["refresh_token"]},
-    ).status_code == 200
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, rotated_token)
+    assert client.post(REFRESH_URL).status_code == 200
 
 
 def test_refresh_token_has_expiry(client, registered_user):
@@ -142,7 +144,7 @@ def test_expired_refresh_token_is_rejected(client, registered_user):
         "email": registered_user["email"],
         "password": registered_user["password"],
     })
-    token = login.json()["refresh_token"]
+    token = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     db = TestingSessionLocal()
     try:
@@ -152,12 +154,18 @@ def test_expired_refresh_token_is_rejected(client, registered_user):
     finally:
         db.close()
 
-    assert client.post(REFRESH_URL, json={"refresh_token": token}).status_code == 401
+    assert client.post(REFRESH_URL).status_code == 401
 
 
 def test_refresh_invalid_token(client):
-    res = client.post(REFRESH_URL, json={"refresh_token": "bad.token.here"})
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, "bad.token.here")
+    res = client.post(REFRESH_URL)
     assert res.status_code == 401
+
+
+def test_refresh_requires_cookie(client):
+    client.cookies.clear()
+    assert client.post(REFRESH_URL).status_code == 401
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
@@ -167,13 +175,15 @@ def test_logout(client, registered_user):
         "email": registered_user["email"],
         "password": registered_user["password"],
     })
-    refresh_token = login_res.json()["refresh_token"]
+    refresh_token = login_res.cookies.get(settings.REFRESH_COOKIE_NAME)
 
-    logout_res = client.post(LOGOUT_URL, json={"refresh_token": refresh_token})
+    logout_res = client.post(LOGOUT_URL)
     assert logout_res.status_code == 200
+    assert settings.REFRESH_COOKIE_NAME not in client.cookies
 
     # Refresh should fail after logout
-    res = client.post(REFRESH_URL, json={"refresh_token": refresh_token})
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, refresh_token)
+    res = client.post(REFRESH_URL)
     assert res.status_code == 401
 
 
@@ -209,7 +219,7 @@ def test_reset_password_is_one_time_and_revokes_sessions(client):
         "email": VALID_USER["email"],
         "password": VALID_USER["password"],
     })
-    old_refresh_token = login.json()["refresh_token"]
+    old_refresh_token = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
         requested = client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
@@ -221,7 +231,8 @@ def test_reset_password_is_one_time_and_revokes_sessions(client):
         "new_password": "replacement-password-456",
     })
     assert reset.status_code == 200
-    assert client.post(REFRESH_URL, json={"refresh_token": old_refresh_token}).status_code == 401
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, old_refresh_token)
+    assert client.post(REFRESH_URL).status_code == 401
     assert client.post(LOGIN_URL, json={
         "email": VALID_USER["email"],
         "password": VALID_USER["password"],
@@ -281,17 +292,15 @@ def test_change_password(client, registered_user, auth_headers):
         "email": registered_user["email"],
         "password": registered_user["password"],
     })
-    old_refresh_token = login.json()["refresh_token"]
+    old_refresh_token = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     res = client.put(CHANGE_PASS_URL, json={
         "current_password": registered_user["password"],
         "new_password": "newpassword456",
     }, headers=auth_headers)
     assert res.status_code == 200
-    assert client.post(
-        REFRESH_URL,
-        json={"refresh_token": old_refresh_token},
-    ).status_code == 401
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, old_refresh_token)
+    assert client.post(REFRESH_URL).status_code == 401
 
     # Old password should no longer work
     login_res = client.post(LOGIN_URL, json={

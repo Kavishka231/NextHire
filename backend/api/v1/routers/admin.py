@@ -20,6 +20,7 @@ from models.search_log import SearchLog
 from models.user import User
 from schemas.auth import RegisterRequest
 from services.auth_service import AuthService
+from core.rate_limit import rate_limit
 from services.notification_service import create_notification
 from tasks.email_task import send_admin_email, send_broadcast_email
 
@@ -405,7 +406,11 @@ def analytics(db: Session = Depends(get_db), admin: User = Depends(require_admin
     }
 
 
-@router.post("/email/broadcast")
+@router.post("/email/broadcast", dependencies=[Depends(rate_limit(
+    "admin-email-broadcast",
+    settings.EMAIL_RATE_LIMIT_PER_HOUR,
+    3600,
+))])
 def broadcast_email(
     payload: AdminEmailRequest,
     db: Session = Depends(get_db),
@@ -429,7 +434,11 @@ def broadcast_email(
     }
 
 
-@router.post("/email/user/{user_id}")
+@router.post("/email/user/{user_id}", dependencies=[Depends(rate_limit(
+    "admin-email-user",
+    settings.EMAIL_RATE_LIMIT_PER_HOUR,
+    3600,
+))])
 def email_user(
     user_id: int,
     payload: AdminEmailRequest,

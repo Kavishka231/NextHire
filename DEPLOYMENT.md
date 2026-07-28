@@ -18,6 +18,14 @@ SMTP delivery and the public reset URL before opening registration.
 Refresh sessions expire after `REFRESH_TOKEN_EXPIRE_DAYS`. Every refresh
 rotates the refresh token, and the Celery scheduler removes expired or revoked
 tokens daily at 03:00 UTC.
+Refresh tokens are sent only in an HttpOnly, SameSite cookie. Set
+`REFRESH_COOKIE_SECURE=true` in production; production startup rejects an
+insecure refresh-cookie configuration.
+
+Authentication and admin-email endpoints use Redis-backed rate limits. Tune
+`AUTH_RATE_LIMIT_PER_MINUTE`, `REGISTER_RATE_LIMIT_PER_MINUTE`, and
+`EMAIL_RATE_LIMIT_PER_HOUR` for expected production traffic. These endpoints
+fail closed with HTTP 503 when Redis is unavailable.
 
 All user-facing email is delivered by Celery. `MAIL_TIMEOUT_SECONDS` bounds
 SMTP connection and read operations. Verify the sender address with the SMTP
@@ -52,6 +60,28 @@ application image against a partially migrated database.
 Only the frontend port is published. PostgreSQL, Redis, the API, and the worker
 remain on the private Compose network. Put the frontend behind a platform load
 balancer or TLS reverse proxy and expose HTTPS only.
+
+## HTTPS proxy
+
+Terminate TLS at the production load balancer or reverse proxy using a
+certificate for the real application domain. The proxy must:
+
+- redirect public HTTP traffic to HTTPS;
+- send `X-Forwarded-Proto: https` for HTTPS requests and `http` for forwarded
+  HTTP requests;
+- preserve the original `Host` header;
+- accept only trusted proxy-to-container traffic on the frontend port.
+
+The frontend Nginx layer also redirects requests explicitly forwarded as HTTP.
+It emits HSTS only when `X-Forwarded-Proto` is `https`, so HSTS is not enabled
+before TLS is confirmed and internal health checks continue to work. Do not
+trust or forward client-supplied `X-Forwarded-*` headers without overwriting
+them at the public proxy.
+
+Nginx limits request bodies to 1 MiB, applies coarse API/auth/email request
+limits, and returns HTTP 429 when those limits are exceeded. Redis-backed
+application limits remain the authoritative protection for authentication and
+email endpoints.
 
 ## Operations
 
