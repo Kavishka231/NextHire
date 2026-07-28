@@ -5,6 +5,7 @@ from models.refresh_token import RefreshToken
 from models.user import User
 from tests.conftest import TestingSessionLocal
 from tasks.token_cleanup_task import cleanup_refresh_tokens
+from app.config import settings
 
 
 def test_cleanup_removes_expired_and_revoked_tokens(client, registered_user):
@@ -12,7 +13,7 @@ def test_cleanup_removes_expired_and_revoked_tokens(client, registered_user):
         "email": registered_user["email"],
         "password": registered_user["password"],
     })
-    active_token = login.json()["refresh_token"]
+    active_token = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     db = TestingSessionLocal()
     try:

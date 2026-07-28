@@ -2,7 +2,7 @@ let employerJobs = [];
 let employerApplications = [];
 
 async function initEmployer() {
-  if (!requireAuth()) return;
+  if (!(await requireAuth())) return;
   document.getElementById("companyJobForm")?.addEventListener("submit", saveCompanyJob);
   document.getElementById("companyProfileForm")?.addEventListener("submit", saveCompanyProfile);
   document.getElementById("clearJobForm")?.addEventListener("click", clearJobForm);

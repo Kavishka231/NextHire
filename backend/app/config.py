@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REFRESH_COOKIE_NAME: str = "nexthire_refresh"
+    REFRESH_COOKIE_SECURE: bool = False
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str = "sqlite:///./nexthire.db"
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -54,6 +56,8 @@ class Settings(BaseSettings):
                 raise ValueError("Production SECRET_KEY must be a strong value of at least 32 characters")
             if self.DATABASE_URL.startswith("sqlite"):
                 raise ValueError("Production DATABASE_URL must use a managed database")
+            if not self.REFRESH_COOKIE_SECURE:
+                raise ValueError("Production refresh cookies must be secure")
         if self.SEED_ADMIN and (not self.ADMIN_EMAIL or len(self.ADMIN_PASSWORD) < 12):
             raise ValueError("Admin bootstrap requires ADMIN_EMAIL and a password of at least 12 characters")
         if min(

@@ -9,7 +9,7 @@ const statusConfig = [
 ];
 
 async function initJobs() {
-  if (!requireAuth()) return;
+  if (!(await requireAuth())) return;
   bindBoardControls();
   await loadJobsUser();
   await loadJobs();
