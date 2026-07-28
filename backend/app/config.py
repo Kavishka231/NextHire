@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str = "sqlite:///./nexthire.db"
     REDIS_URL: str = "redis://localhost:6379/0"
+    LOG_LEVEL: str = "INFO"
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+    APP_RELEASE: str = ""
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT_SECONDS: int = 30
+    DB_POOL_RECYCLE_SECONDS: int = 1800
     AUTH_RATE_LIMIT_PER_MINUTE: int = 10
     REGISTER_RATE_LIMIT_PER_MINUTE: int = 5
     EMAIL_RATE_LIMIT_PER_HOUR: int = 10
@@ -66,6 +74,10 @@ class Settings(BaseSettings):
             self.EMAIL_RATE_LIMIT_PER_HOUR,
         ) < 1:
             raise ValueError("Rate limits must be positive integers")
+        if self.DB_POOL_SIZE < 1 or self.DB_MAX_OVERFLOW < 0:
+            raise ValueError("Database pool settings are invalid")
+        if not 0 <= self.SENTRY_TRACES_SAMPLE_RATE <= 1:
+            raise ValueError("Sentry traces sample rate must be between 0 and 1")
         return self
 
 

@@ -12,6 +12,35 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15.13-alpine
+        env:
+          POSTGRES_USER: nexthire
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: nexthire_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexthire -d nexthire_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4.5-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENVIRONMENT: development
+      SECRET_KEY: ci-only-secret-key-not-used-in-production
+      DATABASE_URL: postgresql://nexthire:ci-only-password@localhost:5432/nexthire_test
+      REDIS_URL: redis://localhost:6379/0
+      SEED_ADMIN: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,11 +48,37 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/requirements*.txt
-      - run: pip install -r backend/requirements-dev.txt
-      - run: python -m pytest -q
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+      - name: Run backend tests
+        run: python -m pytest -q
         working-directory: backend
-      - run: python -m alembic heads
+      - name: Upgrade temporary PostgreSQL
+        run: python -m alembic upgrade head
         working-directory: backend
+      - name: Confirm migration head
+        run: python -m alembic current
+        working-directory: backend
+      - name: API integration smoke test
+        shell: bash
+        working-directory: backend
+        run: |
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 > /tmp/nexthire-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid"' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8000/ready > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              cat /tmp/nexthire-api.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/health
+          curl --fail --silent http://127.0.0.1:8000/ready
+          curl --fail --silent http://127.0.0.1:8000/api/v1/jobs
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -34,4 +89,38 @@ jobs:
         env:
           POSTGRES_PASSWORD: ci-only-password
           SECRET_KEY: ci-only-secret-key-not-used-in-production
-        run: docker compose config --quiet
+        run: docker compose --profile operations config --quiet
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit==2.10.1
+          python -m pip_audit -r backend/requirements.txt
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-only-password
+      SECRET_KEY: ci-only-secret-key-not-used-in-production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build application images
+        run: docker compose build backend worker scheduler frontend migrate

@@ -6,7 +6,7 @@ alembic==1.18.5
 pydantic==2.13.4
 pydantic-settings==2.14.2
 python-dotenv==1.2.2
-python-jose[cryptography]==3.5.0
+PyJWT[crypto]==2.13.0
 passlib==1.7.4
 celery==5.6.3
 redis==8.0.1
