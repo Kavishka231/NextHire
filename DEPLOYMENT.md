@@ -57,6 +57,11 @@ After deployment, confirm Alembic reports migration `009` as the current head.
 Migration `009` intentionally expires refresh tokens created by earlier
 versions, so existing users must sign in again after this release.
 
+Run the automated and manual checks in
+[`docs/DEPLOYMENT_SMOKE_TEST.md`](docs/DEPLOYMENT_SMOKE_TEST.md) against the
+production-like staging release. Do not promote the release until every
+required check has recorded evidence and all temporary records are removed.
+
 Migrations are a controlled release step and are not run automatically by API
 container startup. Before running them, take or verify a database snapshot.
 Stop the release if the migration command fails; do not start the new
