@@ -33,4 +33,5 @@ jobs:
       - name: Validate Compose
         env:
           POSTGRES_PASSWORD: ci-only-password
+          SECRET_KEY: ci-only-secret-key-not-used-in-production
         run: docker compose config --quiet
