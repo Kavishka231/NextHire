@@ -27,6 +27,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     saved_jobs = relationship("SavedJob", back_populates="user", cascade="all, delete-orphan")
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
     profile = relationship("UserProfile", back_populates="user", cascade="all, delete-orphan", uselist=False)

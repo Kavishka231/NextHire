@@ -1,6 +1,4 @@
-const BASE_URL = window.location.port === "5500"
-  ? "/api/v1"
-  : "http://localhost:8000/api/v1";
+const BASE_URL = window.NEXTHIRE_API_URL || "/api/v1";
 
 function getToken() {
   return localStorage.getItem("token");

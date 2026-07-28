@@ -5,7 +5,7 @@ celery_app = Celery(
     "nexthire",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["tasks.reminder_task"],
+    include=["tasks.reminder_task", "tasks.email_task"],
 )
 
 celery_app.conf.update(

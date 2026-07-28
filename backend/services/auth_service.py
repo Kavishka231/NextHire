@@ -1,12 +1,20 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+import hashlib
+import logging
+import secrets
 
+from app.config import settings
+from models.password_reset_token import PasswordResetToken
 from models.user import User
 from models.refresh_token import RefreshToken
 from core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from schemas.auth import RegisterRequest, LoginRequest
 from services.notification_service import notify_admins
+from tasks.email_task import send_password_reset_email
+
+logger = logging.getLogger(__name__)
 
 
 def _token_response(access_token: str, refresh_token: str) -> dict:
@@ -105,8 +113,71 @@ class AuthService:
         return {"message": "Logged out"}
 
     @staticmethod
-    def forgot_password():
+    def forgot_password(db: Session, email: str):
+        user = db.query(User).filter(User.email == email).first()
+        if user and user.is_active:
+            now = datetime.now(timezone.utc)
+            db.query(PasswordResetToken).filter(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used_at.is_(None),
+            ).update({"used_at": now}, synchronize_session=False)
+
+            raw_token = secrets.token_urlsafe(48)
+            token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+            db.add(PasswordResetToken(
+                user_id=user.id,
+                token_hash=token_hash,
+                expires_at=now + timedelta(minutes=settings.RESET_TOKEN_EXPIRE_MINUTES),
+            ))
+            db.commit()
+            try:
+                send_password_reset_email.delay(user.email, raw_token)
+            except Exception:
+                logger.exception("Failed to queue password reset email")
         return {"message": "If the email exists, password reset instructions were sent"}
+
+    @staticmethod
+    def reset_password(db: Session, token: str, new_password: str):
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        reset_token = (
+            db.query(PasswordResetToken)
+            .filter(
+                PasswordResetToken.token_hash == token_hash,
+                PasswordResetToken.used_at.is_(None),
+            )
+            .first()
+        )
+        now = datetime.now(timezone.utc)
+        if not reset_token:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+        expires_at = reset_token.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
+            reset_token.used_at = now
+            db.commit()
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+        user = db.query(User).filter(User.id == reset_token.user_id).first()
+        if not user or not user.is_active:
+            reset_token.used_at = now
+            db.commit()
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+        user.hashed_password = hash_password(new_password)
+        reset_token.used_at = now
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == user.id,
+            RefreshToken.is_revoked.is_(False),
+        ).update({"is_revoked": True}, synchronize_session=False)
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.id != reset_token.id,
+            PasswordResetToken.used_at.is_(None),
+        ).update({"used_at": now}, synchronize_session=False)
+        db.commit()
+        return {"message": "Password reset successfully"}
 
     @staticmethod
     def change_password(db: Session, user: User, current_password: str, new_password: str):

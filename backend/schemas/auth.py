@@ -49,6 +49,23 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("token")
+    @classmethod
+    def token_not_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Reset token is required")
+        return value.strip()
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, value: str) -> str:
+        return _validate_password_length(value)
+
+
 class UserResponse(BaseModel):
     id: int
     email: EmailStr

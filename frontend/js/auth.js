@@ -291,6 +291,51 @@ function initForgotPassword() {
   });
 }
 
+function initResetPassword() {
+  const form = document.getElementById("resetPasswordForm");
+  if (!form) return;
+  const token = new URLSearchParams(window.location.search).get("token");
+  initPasswordToggles();
+  bindValidationClear(form);
+
+  if (!token) {
+    showAlert("alertBox", "This reset link is invalid. Request a new one.");
+    form.querySelector("button[type=submit]").disabled = true;
+    return;
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    hideAlert("alertBox");
+    clearFormErrors(form);
+    let valid = true;
+    if (!requireField(form.newPassword, "Enter a new password.")) valid = false;
+    else if (form.newPassword.value.length < 8) valid = setFieldError(form.newPassword, "Use at least 8 characters.");
+    if (!requireField(form.confirmPassword, "Confirm your new password.")) valid = false;
+    else if (form.newPassword.value !== form.confirmPassword.value) {
+      valid = setFieldError(form.confirmPassword, "Passwords do not match.");
+    }
+    if (!valid) return;
+
+    const btn = form.querySelector("button[type=submit]");
+    setLoading(btn, true);
+    try {
+      await api.post("/auth/reset-password", {
+        token,
+        new_password: form.newPassword.value,
+      });
+      Auth.clearTokens();
+      showAlert("alertBox", "Password updated. Redirecting you to login.", "success");
+      form.reset();
+      setTimeout(() => { window.location.href = "login.html"; }, 1200);
+    } catch (err) {
+      showAlert("alertBox", err.detail || "This reset link is invalid or expired.");
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+}
+
 async function logout() {
   try {
     const refreshToken = Auth.getRefresh();

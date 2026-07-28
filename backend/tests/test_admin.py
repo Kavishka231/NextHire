@@ -1,5 +1,5 @@
 ADMIN_EMAIL = "admin@nexthire.com"
-ADMIN_PASSWORD = "Admin@12345"
+ADMIN_PASSWORD = "Admin@Test12345"
 
 
 def admin_headers(client):

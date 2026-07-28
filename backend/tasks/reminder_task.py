@@ -1,4 +1,5 @@
 from tasks.celery_app import celery_app
+from app.config import settings
 from app.database import SessionLocal
 from models.user import User
 from models.saved_job import SavedJob
@@ -65,7 +66,7 @@ def _send_reminder(user, jobs):
         <ul style="color:#334155;padding-left:20px;margin-bottom:20px">
           {job_list_html}
         </ul>
-        <a href="http://localhost/jobs.html"
+        <a href="{settings.PUBLIC_APP_URL.rstrip('/')}/jobs.html"
            style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;
                   text-decoration:none;border-radius:8px;font-weight:600">
           View my board →

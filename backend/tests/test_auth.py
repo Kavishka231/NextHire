@@ -1,9 +1,16 @@
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
+from models.password_reset_token import PasswordResetToken
+from tests.conftest import TestingSessionLocal
+
 REGISTER_URL      = "/api/v1/auth/register"
 LOGIN_URL         = "/api/v1/auth/login"
 REFRESH_URL       = "/api/v1/auth/refresh"
 LOGOUT_URL        = "/api/v1/auth/logout"
 ME_URL            = "/api/v1/auth/me"
 FORGOT_URL        = "/api/v1/auth/forgot-password"
+RESET_URL         = "/api/v1/auth/reset-password"
 CHANGE_PASS_URL   = "/api/v1/auth/change-password"
 
 VALID_USER = {
@@ -128,6 +135,95 @@ def test_forgot_password_always_200(client):
     # Should return 200 even for unknown emails (security best practice)
     res = client.post(FORGOT_URL, json={"email": "unknown@example.com"})
     assert res.status_code == 200
+
+
+def test_forgot_password_unknown_email_does_not_queue_email(client):
+    with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
+        res = client.post(FORGOT_URL, json={"email": "unknown@example.com"})
+    assert res.status_code == 200
+    queue_email.assert_not_called()
+
+
+def test_forgot_password_does_not_expose_queue_failure(client):
+    client.post(REGISTER_URL, json=VALID_USER)
+    with patch(
+        "services.auth_service.send_password_reset_email.delay",
+        side_effect=RuntimeError("queue unavailable"),
+    ):
+        res = client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
+    assert res.status_code == 200
+    assert res.json()["message"] == "If the email exists, password reset instructions were sent"
+
+
+def test_reset_password_is_one_time_and_revokes_sessions(client):
+    client.post(REGISTER_URL, json=VALID_USER)
+    login = client.post(LOGIN_URL, json={
+        "email": VALID_USER["email"],
+        "password": VALID_USER["password"],
+    })
+    old_refresh_token = login.json()["refresh_token"]
+
+    with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
+        requested = client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
+    assert requested.status_code == 200
+    reset_token = queue_email.call_args.args[1]
+
+    reset = client.post(RESET_URL, json={
+        "token": reset_token,
+        "new_password": "replacement-password-456",
+    })
+    assert reset.status_code == 200
+    assert client.post(REFRESH_URL, json={"refresh_token": old_refresh_token}).status_code == 401
+    assert client.post(LOGIN_URL, json={
+        "email": VALID_USER["email"],
+        "password": VALID_USER["password"],
+    }).status_code == 401
+    assert client.post(LOGIN_URL, json={
+        "email": VALID_USER["email"],
+        "password": "replacement-password-456",
+    }).status_code == 200
+    assert client.post(RESET_URL, json={
+        "token": reset_token,
+        "new_password": "another-password-789",
+    }).status_code == 400
+
+
+def test_new_reset_request_invalidates_previous_token(client):
+    client.post(REGISTER_URL, json=VALID_USER)
+    with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
+        client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
+        first_token = queue_email.call_args.args[1]
+        client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
+        second_token = queue_email.call_args.args[1]
+
+    assert client.post(RESET_URL, json={
+        "token": first_token,
+        "new_password": "replacement-password-456",
+    }).status_code == 400
+    assert client.post(RESET_URL, json={
+        "token": second_token,
+        "new_password": "replacement-password-456",
+    }).status_code == 200
+
+
+def test_expired_reset_token_is_rejected(client):
+    client.post(REGISTER_URL, json=VALID_USER)
+    with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
+        client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
+    reset_token = queue_email.call_args.args[1]
+
+    db = TestingSessionLocal()
+    try:
+        record = db.query(PasswordResetToken).one()
+        record.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        db.commit()
+    finally:
+        db.close()
+
+    assert client.post(RESET_URL, json={
+        "token": reset_token,
+        "new_password": "replacement-password-456",
+    }).status_code == 400
 
 
 # ── Change password ───────────────────────────────────────────────────────────

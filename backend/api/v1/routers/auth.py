@@ -7,6 +7,7 @@ from schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     UserResponse,
 )
 from services.auth_service import AuthService
@@ -42,8 +43,13 @@ def logout(data: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password")
-def forgot_password(data: ForgotPasswordRequest):
-    return AuthService.forgot_password()
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    return AuthService.forgot_password(db, data.email)
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    return AuthService.reset_password(db, data.token, data.new_password)
 
 
 @router.put("/change-password")

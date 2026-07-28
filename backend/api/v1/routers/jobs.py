@@ -11,7 +11,7 @@ from services.notification_service import notify_admins
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
-@router.get("/")
+@router.get("")
 def get_jobs(db: Session = Depends(get_db)):
     return db.query(Job).filter(Job.is_active.is_(True)).all()
 

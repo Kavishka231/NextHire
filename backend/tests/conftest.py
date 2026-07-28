@@ -1,8 +1,14 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+os.environ.setdefault("SEED_ADMIN", "true")
+os.environ.setdefault("ADMIN_EMAIL", "admin@nexthire.com")
+os.environ.setdefault("ADMIN_PASSWORD", "Admin@Test12345")
 
 from main import app
 from app.database import Base, get_db

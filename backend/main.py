@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis import Redis
+from sqlalchemy import text
 from app.config import settings
-from app.database import get_db
+from app.database import engine, get_db
 from api.v1.routers import auth, search, jobs, saved_jobs, notes, stats, profile, admin, notifications, company, applications
 from services.admin_seed import ensure_default_admin
 
@@ -15,12 +17,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "http://localhost:5500",
-        "http://127.0.0.1",
-        "http://127.0.0.1:5500",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +38,8 @@ app.include_router(applications.router, prefix="/api/v1")
 
 @app.on_event("startup")
 def seed_admin_account():
+    if not settings.SEED_ADMIN:
+        return
     db_provider = app.dependency_overrides.get(get_db, get_db)
     db_gen = db_provider()
     db = next(db_gen)
@@ -56,3 +55,12 @@ def seed_admin_account():
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "ok", "app": settings.APP_NAME}
+
+
+@app.get("/ready", tags=["Health"])
+def ready():
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    redis_client = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+    redis_client.ping()
+    return {"status": "ready", "database": "ok", "redis": "ok"}

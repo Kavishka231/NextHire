@@ -72,45 +72,26 @@ NextHire/
 
 | Service | Purpose | Port |
 | --- | --- | --- |
-| `db` | PostgreSQL database | `5432` |
-| `redis` | Redis broker/result backend | `6379` |
-| `backend` | FastAPI API server | `8000` |
+| `db` | PostgreSQL database | private |
+| `redis` | Redis broker/result backend | private |
+| `backend` | FastAPI API server | private |
 | `worker` | Celery worker for reminders | none |
+| `scheduler` | Celery Beat daily reminder scheduler | none |
 | `frontend` | Static frontend served by Nginx | `5500` |
 
 ## Environment Variables
 
-Create a `.env` file in the project root: `NextHire/.env`.
-
-Example:
-
-```env
-APP_NAME=NextHire
-SECRET_KEY=change-this-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nexthire
-REDIS_URL=redis://localhost:6379/0
-
-ADZUNA_APP_ID=
-ADZUNA_APP_KEY=
-
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_FROM=noreply@nexthire.com
-MAIL_FROM_NAME=NextHire
-MAIL_SERVER=smtp.mailtrap.io
-MAIL_PORT=587
-```
+Copy `.env.example` to `.env` and replace every placeholder. Never commit
+`.env`. Production configuration and administrator bootstrap instructions are
+in `DEPLOYMENT.md`.
 
 Notes:
 
-- `SECRET_KEY` is required by `backend/app/config.py`.
-- `DATABASE_URL` is required by SQLAlchemy and Alembic.
+- Production requires a strong `SECRET_KEY` and PostgreSQL `DATABASE_URL`.
 - `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` are optional during development. If they are empty, the Adzuna service can return mock job data.
 - Email variables are used by `backend/services/email_service.py` and the Celery reminder task.
+- Password-reset links are one-time, expire after 30 minutes by default, and
+  require the Celery worker plus working SMTP credentials.
 
 ## Run With Docker
 
@@ -118,16 +99,15 @@ From the project root:
 
 ```bash
 cd NextHire
-docker compose up --build
+docker compose up -d --build
 ```
 
 After startup:
 
 - Frontend: `http://localhost:5500`
-- Backend API: `http://localhost:8000`
-- Swagger docs: `http://localhost:8000/docs`
-- ReDoc docs: `http://localhost:8000/redoc`
-- Health check: `http://localhost:8000/health`
+- Backend API: `http://localhost:5500/api/v1`
+- Swagger and ReDoc are available on the private backend network.
+- Liveness/readiness: `/health` and `/ready` on the private backend network.
 
 Run migrations inside the backend container:
 

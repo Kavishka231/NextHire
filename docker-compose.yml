@@ -1,88 +1,122 @@
 services:
-
-  # --------------------
-  # DATABASE (PostgreSQL)
-  # --------------------
   db:
-    image: postgres:15
-    container_name: nexthire-db
-    restart: always
+    image: postgres:15.13-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: nexthire
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-nexthire}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nexthire}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [private]
 
-  # --------------------
-  # REDIS (for caching + celery)
-  # --------------------
   redis:
-    image: redis:7
-    container_name: nexthire-redis
-    restart: always
-    ports:
-      - "6379:6379"
+    image: redis:7.4.5-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [private]
 
-  # --------------------
-  # BACKEND (FastAPI)
-  # --------------------
   backend:
     build: ./backend
-    container_name: nexthire-backend
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - db
-      - redis
-    ports:
-      - "8000:8000"
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/nexthire
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexthire}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nexthire}
       REDIS_URL: redis://redis:6379/0
-    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
-    volumes:
-      - ./backend:/app
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5500}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5500,http://127.0.0.1:5500}
+      SEED_ADMIN: ${SEED_ADMIN:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-NextHire Admin}
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    networks: [private]
 
-  # --------------------
-  # CELERY WORKER
-  # --------------------
   worker:
     build: ./backend
-    container_name: nexthire-worker
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - backend
-      - redis
-      - db
-    command: celery -A tasks.celery_app worker --loglevel=info
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/nexthire
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexthire}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nexthire}
       REDIS_URL: redis://redis:6379/0
-    volumes:
-      - ./backend:/app
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5500}
+    command: celery -A tasks.celery_app worker --loglevel=info
+    healthcheck:
+      disable: true
+    networks: [private]
 
-  # --------------------
-  # FRONTEND (static HTML/CSS/JS)
-  # --------------------
+  scheduler:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexthire}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nexthire}
+      REDIS_URL: redis://redis:6379/0
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5500}
+    command: celery -A tasks.celery_app beat --loglevel=info
+    healthcheck:
+      disable: true
+    networks: [private]
+
   frontend:
     build:
       context: ./frontend
       dockerfile: DockerFile
-    container_name: nexthire-frontend
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "5500:80"
+      - "${FRONTEND_PORT:-5500}:80"
+    networks: [private]
 
-# --------------------
-# VOLUMES
-# --------------------
 volumes:
   pgdata:
+  redisdata:
+
+networks:
+  private:
+    driver: bridge
