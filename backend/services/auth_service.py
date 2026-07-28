@@ -86,15 +86,27 @@ class AuthService:
         user = db.query(User).filter(User.email == data.email).first()
 
         if not user:
+            logger.warning("Authentication failed", extra={
+                "event": "authentication_failure", "reason": "invalid_credentials",
+            })
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         if not user.is_active:
+            logger.warning("Authentication failed", extra={
+                "event": "authentication_failure", "user_id": user.id, "reason": "inactive",
+            })
             raise HTTPException(status_code=403, detail="Account is deactivated")
 
         if user.banned_until and user.banned_until > datetime.utcnow():
+            logger.warning("Authentication failed", extra={
+                "event": "authentication_failure", "user_id": user.id, "reason": "banned",
+            })
             raise HTTPException(status_code=403, detail="Account is temporarily banned")
 
         if not verify_password(data.password, user.hashed_password):
+            logger.warning("Authentication failed", extra={
+                "event": "authentication_failure", "user_id": user.id, "reason": "invalid_credentials",
+            })
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         token = create_access_token({"user_id": user.id, "email": user.email})
@@ -113,13 +125,23 @@ class AuthService:
             .with_for_update()
             .first()
         )
-        if not refresh or refresh.is_revoked:
+        if not refresh:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        if refresh.is_revoked:
+            logger.warning("Refresh token reuse rejected", extra={
+                "event": "refresh_token_reuse", "user_id": refresh.user_id,
+                "reason": "revoked",
+            })
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         now = datetime.now(timezone.utc)
         if _as_utc(refresh.expires_at) <= now:
             refresh.is_revoked = True
             db.commit()
+            logger.warning("Expired refresh token rejected", extra={
+                "event": "authentication_failure", "user_id": refresh.user_id,
+                "reason": "expired_refresh_token",
+            })
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         user = db.query(User).filter(User.id == refresh.user_id).first()
@@ -170,7 +192,10 @@ class AuthService:
             try:
                 send_password_reset_email.delay(user.email, raw_token)
             except Exception:
-                logger.exception("Failed to queue password reset email")
+                logger.exception("Failed to queue password reset email", extra={
+                    "event": "email_queue_failure",
+                    "reason": "password_reset",
+                })
         return {"message": "If the email exists, password reset instructions were sent"}
 
     @staticmethod

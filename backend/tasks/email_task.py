@@ -64,6 +64,13 @@ def send_broadcast_email(recipients: list[str], subject: str, body: str) -> dict
             sent += 1
         except (OSError, smtplib.SMTPException):
             failed += 1
-            logger.exception("Broadcast email delivery failed for one recipient")
-    logger.info("Broadcast email completed: sent=%s failed=%s", sent, failed)
+            logger.exception("Broadcast email delivery failed", extra={
+                "event": "email_delivery_failure",
+                "reason": "broadcast_recipient",
+            })
+    logger.info("Broadcast email completed", extra={
+        "event": "email_broadcast_complete",
+        "sent": sent,
+        "failed": failed,
+    })
     return {"sent": sent, "failed": failed}

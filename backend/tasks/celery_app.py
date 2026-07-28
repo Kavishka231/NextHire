@@ -1,6 +1,14 @@
+import logging
+
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import task_failure
 from app.config import settings
+from app.observability import configure_logging, configure_sentry
+
+configure_logging()
+configure_sentry()
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "nexthire",
@@ -27,3 +35,16 @@ celery_app.conf.update(
         },
     },
 )
+
+
+@task_failure.connect
+def log_task_failure(sender=None, task_id=None, exception=None, **kwargs):
+    logger.error(
+        "Celery task failed",
+        extra={
+            "event": "celery_task_failure",
+            "task_name": getattr(sender, "name", "unknown"),
+            "task_id": task_id,
+            "exception_type": type(exception).__name__ if exception else "unknown",
+        },
+    )

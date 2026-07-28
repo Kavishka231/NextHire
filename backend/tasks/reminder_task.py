@@ -83,4 +83,7 @@ def _send_reminder(user, jobs):
     try:
         _send(user.email, subject, body)
     except Exception:
-        logger.exception("Reminder email delivery failed for one user")
+        logger.exception("Reminder email delivery failed", extra={
+            "event": "email_delivery_failure",
+            "reason": "application_reminder",
+        })
