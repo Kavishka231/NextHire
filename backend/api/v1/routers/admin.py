@@ -3,6 +3,7 @@ import socket
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import case, func, text
 from sqlalchemy.orm import Session
 
@@ -18,8 +19,14 @@ from models.search_log import SearchLog
 from models.user import User
 from schemas.auth import RegisterRequest
 from services.notification_service import create_notification
+from tasks.email_task import send_admin_email, send_broadcast_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+class AdminEmailRequest(BaseModel):
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=20_000)
 
 
 def _user_row(db: Session, user: User) -> dict:
@@ -363,13 +370,49 @@ def analytics(db: Session = Depends(get_db), admin: User = Depends(require_admin
 
 
 @router.post("/email/broadcast")
-def broadcast_email(payload: dict, admin: User = Depends(require_admin_role("super_admin"))):
-    return {"message": "Broadcast queued", "subject": payload.get("subject", ""), "recipients": "all users"}
+def broadcast_email(
+    payload: AdminEmailRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_role("super_admin")),
+):
+    recipients = [
+        email for (email,) in
+        db.query(User.email).filter(User.is_active.is_(True)).all()
+    ]
+    if not recipients:
+        raise HTTPException(status_code=400, detail="No active recipients")
+    try:
+        task = send_broadcast_email.delay(recipients, payload.subject.strip(), payload.body.strip())
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Email queue unavailable") from exc
+    return {
+        "message": "Broadcast queued",
+        "subject": payload.subject.strip(),
+        "recipients": len(recipients),
+        "task_id": task.id,
+    }
 
 
 @router.post("/email/user/{user_id}")
-def email_user(user_id: int, payload: dict, admin: User = Depends(require_admin_role("super_admin", "moderator"))):
-    return {"message": "Email queued", "user_id": user_id, "subject": payload.get("subject", "")}
+def email_user(
+    user_id: int,
+    payload: AdminEmailRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_role("super_admin", "moderator")),
+):
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Active user not found")
+    try:
+        task = send_admin_email.delay(user.email, payload.subject.strip(), payload.body.strip())
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Email queue unavailable") from exc
+    return {
+        "message": "Email queued",
+        "user_id": user.id,
+        "subject": payload.subject.strip(),
+        "task_id": task.id,
+    }
 
 
 @router.get("/email/reminder-preview")

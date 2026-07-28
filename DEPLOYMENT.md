@@ -15,6 +15,11 @@ Password-reset links use `PUBLIC_APP_URL`, expire after
 `RESET_TOKEN_EXPIRE_MINUTES`, and are delivered by the Celery worker. Verify
 SMTP delivery and the public reset URL before opening registration.
 
+All user-facing email is delivered by Celery. `MAIL_TIMEOUT_SECONDS` bounds
+SMTP connection and read operations. Verify the sender address with the SMTP
+provider before testing password resets, reminders, individual admin email, or
+broadcasts.
+
 Administrator bootstrap is off by default. To create the first administrator,
 set `SEED_ADMIN=true` with `ADMIN_EMAIL` and a password of at least 12
 characters, deploy once, then set `SEED_ADMIN=false` and redeploy.

@@ -6,6 +6,9 @@ from models.saved_job import SavedJob
 from models.job import Job
 from services.email_service import _send
 from datetime import datetime, timedelta, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="tasks.reminder_task.send_reminders")
@@ -79,5 +82,5 @@ def _send_reminder(user, jobs):
     """
     try:
         _send(user.email, subject, body)
-    except Exception as e:
-        print(f"[reminder] Failed to email {user.email}: {e}")
+    except Exception:
+        logger.exception("Reminder email delivery failed for one user")

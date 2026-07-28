@@ -6,9 +6,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-os.environ.setdefault("SEED_ADMIN", "true")
-os.environ.setdefault("ADMIN_EMAIL", "admin@nexthire.com")
-os.environ.setdefault("ADMIN_PASSWORD", "Admin@Test12345")
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["SECRET_KEY"] = "test-only-secret-key-never-use-in-production"
+os.environ["DATABASE_URL"] = "sqlite://"
+os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+os.environ["SEED_ADMIN"] = "true"
+os.environ["ADMIN_EMAIL"] = "admin@nexthire.com"
+os.environ["ADMIN_PASSWORD"] = "Admin@Test12345"
 
 from main import app
 from app.database import Base, get_db

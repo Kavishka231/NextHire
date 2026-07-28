@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = "NextHire"
     MAIL_SERVER: str = "smtp.mailtrap.io"
     MAIL_PORT: int = 587
+    MAIL_TIMEOUT_SECONDS: int = 10
     ADZUNA_APP_ID: str = ""
     ADZUNA_APP_KEY: str = ""
 
