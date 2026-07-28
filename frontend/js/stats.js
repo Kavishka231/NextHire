@@ -1,5 +1,5 @@
 async function initDashboard() {
-  if (!requireAuth()) return;
+  if (!(await requireAuth())) return;
   await Promise.all([loadDashboardUser(), loadStats()]);
 }
 

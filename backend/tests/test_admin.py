@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import patch
+from app.config import settings
 
 ADMIN_EMAIL = "admin@nexthire.com"
 ADMIN_PASSWORD = "Admin@Test12345"
@@ -41,6 +42,7 @@ def test_disabling_user_revokes_refresh_sessions(client):
         "email": "disabled@example.com",
         "password": "password123",
     })
+    user_refresh = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     response = client.patch(
         f"/api/v1/admin/users/{user['id']}",
@@ -49,9 +51,8 @@ def test_disabling_user_revokes_refresh_sessions(client):
     )
 
     assert response.status_code == 200
-    assert client.post("/api/v1/auth/refresh", json={
-        "refresh_token": login.json()["refresh_token"],
-    }).status_code == 401
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, user_refresh)
+    assert client.post("/api/v1/auth/refresh").status_code == 401
 
 
 def test_admin_password_reset_revokes_refresh_sessions(client):
@@ -64,6 +65,7 @@ def test_admin_password_reset_revokes_refresh_sessions(client):
         "email": "admin-reset@example.com",
         "password": "password123",
     })
+    user_refresh = login.cookies.get(settings.REFRESH_COOKIE_NAME)
 
     response = client.post(
         f"/api/v1/admin/users/{user['id']}/reset-password",
@@ -72,9 +74,8 @@ def test_admin_password_reset_revokes_refresh_sessions(client):
     )
 
     assert response.status_code == 200
-    assert client.post("/api/v1/auth/refresh", json={
-        "refresh_token": login.json()["refresh_token"],
-    }).status_code == 401
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, user_refresh)
+    assert client.post("/api/v1/auth/refresh").status_code == 401
 
 
 def test_admin_can_add_featured_job(client):

@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
-    RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
     UserResponse,
@@ -17,6 +16,28 @@ from app.config import settings
 from models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.REFRESH_COOKIE_SECURE,
+        samesite="lax",
+        path="/api/v1/auth",
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        httponly=True,
+        secure=settings.REFRESH_COOKIE_SECURE,
+        samesite="lax",
+        path="/api/v1/auth",
+    )
 
 
 @router.post(
@@ -36,8 +57,10 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     "login",
     settings.AUTH_RATE_LIMIT_PER_MINUTE,
 ))])
-def login(data: LoginRequest, db: Session = Depends(get_db)):
-    return AuthService.login(db, data)
+def login(data: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    tokens = AuthService.login(db, data)
+    _set_refresh_cookie(response, tokens.pop("refresh_token"))
+    return tokens
 
 
 @router.get("/me", response_model=UserResponse)
@@ -49,13 +72,28 @@ def me(current_user: User = Depends(get_current_user)):
     "refresh",
     settings.AUTH_RATE_LIMIT_PER_MINUTE,
 ))])
-def refresh(data: RefreshRequest, db: Session = Depends(get_db)):
-    return AuthService.refresh(db, data.refresh_token)
+def refresh(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    db: Session = Depends(get_db),
+):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    tokens = AuthService.refresh(db, refresh_token)
+    _set_refresh_cookie(response, tokens.pop("refresh_token"))
+    return tokens
 
 
 @router.post("/logout")
-def logout(data: RefreshRequest, db: Session = Depends(get_db)):
-    return AuthService.logout(db, data.refresh_token)
+def logout(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    db: Session = Depends(get_db),
+):
+    if refresh_token:
+        AuthService.logout(db, refresh_token)
+    _clear_refresh_cookie(response)
+    return {"message": "Logged out"}
 
 
 @router.post("/forgot-password", dependencies=[Depends(rate_limit(

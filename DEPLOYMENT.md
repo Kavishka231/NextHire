@@ -18,6 +18,9 @@ SMTP delivery and the public reset URL before opening registration.
 Refresh sessions expire after `REFRESH_TOKEN_EXPIRE_DAYS`. Every refresh
 rotates the refresh token, and the Celery scheduler removes expired or revoked
 tokens daily at 03:00 UTC.
+Refresh tokens are sent only in an HttpOnly, SameSite cookie. Set
+`REFRESH_COOKIE_SECURE=true` in production; production startup rejects an
+insecure refresh-cookie configuration.
 
 Authentication and admin-email endpoints use Redis-backed rate limits. Tune
 `AUTH_RATE_LIMIT_PER_MINUTE`, `REGISTER_RATE_LIMIT_PER_MINUTE`, and

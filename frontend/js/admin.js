@@ -1,5 +1,5 @@
 async function initAdmin() {
-  if (!requireAuth()) return;
+  if (!(await requireAuth())) return;
   bindAdminEvents();
   await loadAdmin();
 }

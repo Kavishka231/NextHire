@@ -99,7 +99,7 @@ const sectionConfigs = [
 let profileState = {};
 
 async function initProfile() {
-  if (!requireAuth()) return;
+  if (!(await requireAuth())) return;
   renderDynamicSections();
   bindProfileEvents();
   await loadProfile();
