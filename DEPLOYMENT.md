@@ -55,6 +55,28 @@ Only the frontend port is published. PostgreSQL, Redis, the API, and the worker
 remain on the private Compose network. Put the frontend behind a platform load
 balancer or TLS reverse proxy and expose HTTPS only.
 
+## HTTPS proxy
+
+Terminate TLS at the production load balancer or reverse proxy using a
+certificate for the real application domain. The proxy must:
+
+- redirect public HTTP traffic to HTTPS;
+- send `X-Forwarded-Proto: https` for HTTPS requests and `http` for forwarded
+  HTTP requests;
+- preserve the original `Host` header;
+- accept only trusted proxy-to-container traffic on the frontend port.
+
+The frontend Nginx layer also redirects requests explicitly forwarded as HTTP.
+It emits HSTS only when `X-Forwarded-Proto` is `https`, so HSTS is not enabled
+before TLS is confirmed and internal health checks continue to work. Do not
+trust or forward client-supplied `X-Forwarded-*` headers without overwriting
+them at the public proxy.
+
+Nginx limits request bodies to 1 MiB, applies coarse API/auth/email request
+limits, and returns HTTP 429 when those limits are exceeded. Redis-backed
+application limits remain the authoritative protection for authentication and
+email endpoints.
+
 ## Operations
 
 - `/health` is the process liveness endpoint.
