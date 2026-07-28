@@ -31,6 +31,52 @@ def test_admin_can_list_users(client):
     assert any(user["email"] == ADMIN_EMAIL for user in res.json())
 
 
+def test_disabling_user_revokes_refresh_sessions(client):
+    user = client.post("/api/v1/auth/register", json={
+        "email": "disabled@example.com",
+        "full_name": "Disabled User",
+        "password": "password123",
+    }).json()
+    login = client.post("/api/v1/auth/login", json={
+        "email": "disabled@example.com",
+        "password": "password123",
+    })
+
+    response = client.patch(
+        f"/api/v1/admin/users/{user['id']}",
+        json={"is_active": False},
+        headers=admin_headers(client),
+    )
+
+    assert response.status_code == 200
+    assert client.post("/api/v1/auth/refresh", json={
+        "refresh_token": login.json()["refresh_token"],
+    }).status_code == 401
+
+
+def test_admin_password_reset_revokes_refresh_sessions(client):
+    user = client.post("/api/v1/auth/register", json={
+        "email": "admin-reset@example.com",
+        "full_name": "Admin Reset User",
+        "password": "password123",
+    }).json()
+    login = client.post("/api/v1/auth/login", json={
+        "email": "admin-reset@example.com",
+        "password": "password123",
+    })
+
+    response = client.post(
+        f"/api/v1/admin/users/{user['id']}/reset-password",
+        json={"new_password": "replacement-password"},
+        headers=admin_headers(client),
+    )
+
+    assert response.status_code == 200
+    assert client.post("/api/v1/auth/refresh", json={
+        "refresh_token": login.json()["refresh_token"],
+    }).status_code == 401
+
+
 def test_admin_can_add_featured_job(client):
     res = client.post(
         "/api/v1/admin/jobs",
