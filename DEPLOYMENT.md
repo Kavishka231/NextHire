@@ -19,6 +19,11 @@ Refresh sessions expire after `REFRESH_TOKEN_EXPIRE_DAYS`. Every refresh
 rotates the refresh token, and the Celery scheduler removes expired or revoked
 tokens daily at 03:00 UTC.
 
+Authentication and admin-email endpoints use Redis-backed rate limits. Tune
+`AUTH_RATE_LIMIT_PER_MINUTE`, `REGISTER_RATE_LIMIT_PER_MINUTE`, and
+`EMAIL_RATE_LIMIT_PER_HOUR` for expected production traffic. These endpoints
+fail closed with HTTP 503 when Redis is unavailable.
+
 All user-facing email is delivered by Celery. `MAIL_TIMEOUT_SECONDS` bounds
 SMTP connection and read operations. Verify the sender address with the SMTP
 provider before testing password resets, reminders, individual admin email, or

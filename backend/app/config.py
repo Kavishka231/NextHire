@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str = "sqlite:///./nexthire.db"
     REDIS_URL: str = "redis://localhost:6379/0"
+    AUTH_RATE_LIMIT_PER_MINUTE: int = 10
+    REGISTER_RATE_LIMIT_PER_MINUTE: int = 5
+    EMAIL_RATE_LIMIT_PER_HOUR: int = 10
     PUBLIC_APP_URL: str = "http://localhost:5500"
     CORS_ORIGINS: str = "http://localhost:5500,http://127.0.0.1:5500"
 
@@ -53,6 +56,12 @@ class Settings(BaseSettings):
                 raise ValueError("Production DATABASE_URL must use a managed database")
         if self.SEED_ADMIN and (not self.ADMIN_EMAIL or len(self.ADMIN_PASSWORD) < 12):
             raise ValueError("Admin bootstrap requires ADMIN_EMAIL and a password of at least 12 characters")
+        if min(
+            self.AUTH_RATE_LIMIT_PER_MINUTE,
+            self.REGISTER_RATE_LIMIT_PER_MINUTE,
+            self.EMAIL_RATE_LIMIT_PER_HOUR,
+        ) < 1:
+            raise ValueError("Rate limits must be positive integers")
         return self
 
 
