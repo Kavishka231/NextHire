@@ -32,6 +32,11 @@ SMTP connection and read operations. Verify the sender address with the SMTP
 provider before testing password resets, reminders, individual admin email, or
 broadcasts.
 
+Complete [`docs/EMAIL_PRODUCTION_CHECKLIST.md`](docs/EMAIL_PRODUCTION_CHECKLIST.md)
+before enabling production registration. It covers credential rotation,
+Brevo/domain verification, DNS authentication, delivery tests, and bounce or
+complaint monitoring.
+
 Administrator bootstrap is off by default. To create the first administrator,
 set `SEED_ADMIN=true` with `ADMIN_EMAIL` and a password of at least 12
 characters, deploy once, then set `SEED_ADMIN=false` and redeploy.
