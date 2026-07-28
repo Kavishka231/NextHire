@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from models.password_reset_token import PasswordResetToken
+from models.refresh_token import RefreshToken
 from tests.conftest import TestingSessionLocal
 
 REGISTER_URL      = "/api/v1/auth/register"
@@ -105,6 +106,53 @@ def test_refresh_token(client, registered_user):
     res = client.post(REFRESH_URL, json={"refresh_token": refresh_token})
     assert res.status_code == 200
     assert "access_token" in res.json()
+    assert res.json()["refresh_token"] != refresh_token
+
+    # Rotation makes the submitted token unusable.
+    assert client.post(
+        REFRESH_URL,
+        json={"refresh_token": refresh_token},
+    ).status_code == 401
+
+    # The newly issued token can itself be rotated.
+    assert client.post(
+        REFRESH_URL,
+        json={"refresh_token": res.json()["refresh_token"]},
+    ).status_code == 200
+
+
+def test_refresh_token_has_expiry(client, registered_user):
+    before_login = datetime.now(timezone.utc)
+    client.post(LOGIN_URL, json={
+        "email": registered_user["email"],
+        "password": registered_user["password"],
+    })
+
+    db = TestingSessionLocal()
+    try:
+        record = db.query(RefreshToken).one()
+        assert record.expires_at is not None
+        assert record.expires_at.replace(tzinfo=timezone.utc) > before_login
+    finally:
+        db.close()
+
+
+def test_expired_refresh_token_is_rejected(client, registered_user):
+    login = client.post(LOGIN_URL, json={
+        "email": registered_user["email"],
+        "password": registered_user["password"],
+    })
+    token = login.json()["refresh_token"]
+
+    db = TestingSessionLocal()
+    try:
+        record = db.query(RefreshToken).filter(RefreshToken.token == token).one()
+        record.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    finally:
+        db.close()
+
+    assert client.post(REFRESH_URL, json={"refresh_token": token}).status_code == 401
 
 
 def test_refresh_invalid_token(client):
@@ -229,11 +277,21 @@ def test_expired_reset_token_is_rejected(client):
 # ── Change password ───────────────────────────────────────────────────────────
 
 def test_change_password(client, registered_user, auth_headers):
+    login = client.post(LOGIN_URL, json={
+        "email": registered_user["email"],
+        "password": registered_user["password"],
+    })
+    old_refresh_token = login.json()["refresh_token"]
+
     res = client.put(CHANGE_PASS_URL, json={
         "current_password": registered_user["password"],
         "new_password": "newpassword456",
     }, headers=auth_headers)
     assert res.status_code == 200
+    assert client.post(
+        REFRESH_URL,
+        json={"refresh_token": old_refresh_token},
+    ).status_code == 401
 
     # Old password should no longer work
     login_res = client.post(LOGIN_URL, json={

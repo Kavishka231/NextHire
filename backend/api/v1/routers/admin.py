@@ -18,6 +18,7 @@ from models.saved_job import SavedJob
 from models.search_log import SearchLog
 from models.user import User
 from schemas.auth import RegisterRequest
+from services.auth_service import AuthService
 from services.notification_service import create_notification
 from tasks.email_task import send_admin_email, send_broadcast_email
 
@@ -145,6 +146,8 @@ def update_user(
             setattr(user, field, bool(payload[field]))
     if "banned_until" in payload:
         user.banned_until = datetime.fromisoformat(payload["banned_until"]) if payload["banned_until"] else None
+    if not user.is_active or user.banned_until:
+        AuthService.revoke_all_sessions(db, user.id)
     db.commit()
     db.refresh(user)
     return _user_row(db, user)
@@ -180,6 +183,7 @@ def reset_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = hash_password(new_password)
+    AuthService.revoke_all_sessions(db, user.id)
     db.commit()
     return {"message": "Password reset"}
 

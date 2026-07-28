@@ -15,6 +15,10 @@ Password-reset links use `PUBLIC_APP_URL`, expire after
 `RESET_TOKEN_EXPIRE_MINUTES`, and are delivered by the Celery worker. Verify
 SMTP delivery and the public reset URL before opening registration.
 
+Refresh sessions expire after `REFRESH_TOKEN_EXPIRE_DAYS`. Every refresh
+rotates the refresh token, and the Celery scheduler removes expired or revoked
+tokens daily at 03:00 UTC.
+
 All user-facing email is delivered by Celery. `MAIL_TIMEOUT_SECONDS` bounds
 SMTP connection and read operations. Verify the sender address with the SMTP
 provider before testing password resets, reminders, individual admin email, or
@@ -35,7 +39,9 @@ curl --fail http://localhost:5500/
 curl --fail http://localhost:5500/api/v1/jobs
 ```
 
-After deployment, confirm Alembic reports migration `008` as the current head.
+After deployment, confirm Alembic reports migration `009` as the current head.
+Migration `009` intentionally expires refresh tokens created by earlier
+versions, so existing users must sign in again after this release.
 
 Only the frontend port is published. PostgreSQL, Redis, the API, and the worker
 remain on the private Compose network. Put the frontend behind a platform load

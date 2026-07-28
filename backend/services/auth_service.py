@@ -25,7 +25,27 @@ def _token_response(access_token: str, refresh_token: str) -> dict:
     }
 
 
+def _as_utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
 class AuthService:
+
+    @staticmethod
+    def create_refresh_session(user_id: int) -> RefreshToken:
+        return RefreshToken(
+            token=create_refresh_token(),
+            user_id=user_id,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+
+    @staticmethod
+    def revoke_all_sessions(db: Session, user_id: int) -> None:
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_revoked.is_(False),
+        ).update({"is_revoked": True}, synchronize_session=False)
 
     @staticmethod
     def register(db: Session, data: RegisterRequest):
@@ -78,7 +98,7 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         token = create_access_token({"user_id": user.id, "email": user.email})
-        refresh = RefreshToken(token=create_refresh_token(), user_id=user.id)
+        refresh = AuthService.create_refresh_session(user.id)
         user.last_active_at = datetime.utcnow()
         db.add(refresh)
         db.commit()
@@ -89,19 +109,36 @@ class AuthService:
     def refresh(db: Session, token: str):
         refresh = (
             db.query(RefreshToken)
-            .filter(RefreshToken.token == token, RefreshToken.is_revoked.is_(False))
+            .filter(RefreshToken.token == token)
+            .with_for_update()
             .first()
         )
-        if not refresh:
+        if not refresh or refresh.is_revoked:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        now = datetime.now(timezone.utc)
+        if _as_utc(refresh.expires_at) <= now:
+            refresh.is_revoked = True
+            db.commit()
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         user = db.query(User).filter(User.id == refresh.user_id).first()
-        if not user:
+        if (
+            not user
+            or not user.is_active
+            or (user.banned_until and _as_utc(user.banned_until) > now)
+        ):
+            refresh.is_revoked = True
+            db.commit()
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+        refresh.is_revoked = True
+        rotated_refresh = AuthService.create_refresh_session(user.id)
+        db.add(rotated_refresh)
+        db.commit()
         return _token_response(
             create_access_token({"user_id": user.id, "email": user.email}),
-            refresh.token,
+            rotated_refresh.token,
         )
 
     @staticmethod
@@ -167,10 +204,7 @@ class AuthService:
 
         user.hashed_password = hash_password(new_password)
         reset_token.used_at = now
-        db.query(RefreshToken).filter(
-            RefreshToken.user_id == user.id,
-            RefreshToken.is_revoked.is_(False),
-        ).update({"is_revoked": True}, synchronize_session=False)
+        AuthService.revoke_all_sessions(db, user.id)
         db.query(PasswordResetToken).filter(
             PasswordResetToken.user_id == user.id,
             PasswordResetToken.id != reset_token.id,
@@ -185,6 +219,6 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         user.hashed_password = hash_password(new_password)
-        db.query(RefreshToken).filter(RefreshToken.user_id == user.id).update({"is_revoked": True})
+        AuthService.revoke_all_sessions(db, user.id)
         db.commit()
         return {"message": "Password changed"}
