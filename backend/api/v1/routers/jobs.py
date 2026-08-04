@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,7 @@ from schemas.job import CompanyJobCreate, CompanyJobUpdate
 from services.notification_service import notify_admins
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("")
@@ -113,6 +116,14 @@ def create_company_job(
     db.add(job)
     db.commit()
     db.refresh(job)
+    logger.info("Company job created", extra={
+        "event": "company_job_created",
+        "job_id": job.id,
+        "job_title": job.title,
+        "company_name": job.company,
+        "actor_user_id": current_user.id,
+        "outcome": "success",
+    })
     notify_admins(
         db,
         "New company job post",
