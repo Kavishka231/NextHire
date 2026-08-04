@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from services.notification_service import create_notification
 from services.profile_service import ProfileService
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
+logger = logging.getLogger(__name__)
 
 
 def serialize_application(application: JobApplication) -> dict:
@@ -76,6 +79,14 @@ def submit_application(
         )
     db.commit()
     db.refresh(application)
+    logger.info("Application submitted", extra={
+        "event": "application_submitted",
+        "application_id": application.id,
+        "job_id": job.id,
+        "job_title": job.title,
+        "actor_user_id": current_user.id,
+        "outcome": "success",
+    })
     return serialize_application(application)
 
 

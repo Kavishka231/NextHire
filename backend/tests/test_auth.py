@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -48,6 +49,32 @@ def test_register_short_password(client):
 def test_register_invalid_email(client):
     res = client.post(REGISTER_URL, json={**VALID_USER, "email": "not-an-email"})
     assert res.status_code == 422
+
+
+def test_auth_logs_business_events(client, caplog):
+    with caplog.at_level(logging.INFO):
+        res = client.post(REGISTER_URL, json=VALID_USER)
+        assert res.status_code == 201
+        failed_login = client.post(LOGIN_URL, json={
+            "email": VALID_USER["email"],
+            "password": "wrongpassword",
+        })
+
+    assert failed_login.status_code == 401
+    assert any(
+        hasattr(record, "event")
+        and record.event == "user_registered"
+        and record.user_id is not None
+        and record.outcome == "success"
+        for record in caplog.records
+    )
+    assert any(
+        hasattr(record, "event")
+        and record.event == "login_failed"
+        and record.reason == "invalid_credentials"
+        and record.outcome == "failure"
+        for record in caplog.records
+    )
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────

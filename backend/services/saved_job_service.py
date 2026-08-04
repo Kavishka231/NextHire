@@ -1,7 +1,12 @@
+import logging
+
 from fastapi import HTTPException
 
 from models.saved_job import SavedJob
 from models.job import Job
+
+
+logger = logging.getLogger(__name__)
 
 
 class SavedJobService:
@@ -42,6 +47,14 @@ class SavedJobService:
         db.add(saved_job)
         db.commit()
         db.refresh(saved_job)
+        logger.info("Saved job created", extra={
+            "event": "saved_job_created",
+            "saved_job_id": saved_job.id,
+            "job_id": job.id,
+            "job_title": job.title,
+            "user_id": user_id,
+            "outcome": "success",
+        })
 
         return saved_job
 
@@ -94,6 +107,13 @@ class SavedJobService:
 
         db.delete(saved_job)
         db.commit()
+        logger.info("Saved job deleted", extra={
+            "event": "saved_job_deleted",
+            "saved_job_id": saved_job.id,
+            "job_id": job_id,
+            "user_id": user_id,
+            "outcome": "success",
+        })
 
         return {
             "message": "Saved job removed"

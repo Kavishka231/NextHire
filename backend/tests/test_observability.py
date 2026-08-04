@@ -15,11 +15,15 @@ def test_json_logging_redacts_secrets_and_ignores_unsafe_fields():
         exc_info=None,
     )
     record.event = "authentication_failure"
+    record.job_id = 42
+    record.account_type = "candidate"
     record.password = "must-never-appear"
 
     payload = json.loads(JsonFormatter().format(record))
 
     assert payload["event"] == "authentication_failure"
+    assert payload["job_id"] == 42
+    assert payload["account_type"] == "candidate"
     assert "Bearer-secret" not in payload["message"]
     assert "hunter2" not in payload["message"]
     assert "reset-value" not in payload["message"]

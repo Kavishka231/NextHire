@@ -52,6 +52,11 @@ class AuthService:
         existing_user = db.query(User).filter(User.email == data.email).first()
 
         if existing_user:
+            logger.warning("User registration failed", extra={
+                "event": "user_registration_failed",
+                "reason": "duplicate_email",
+                "outcome": "failure",
+            })
             raise HTTPException(status_code=400, detail="User already exists")
 
         user = User(
@@ -69,6 +74,13 @@ class AuthService:
         db.add(user)
         db.commit()
         db.refresh(user)
+        logger.info("User registered", extra={
+            "event": "user_registered",
+            "user_id": user.id,
+            "account_type": user.account_type,
+            "company_name": user.company_name,
+            "outcome": "success",
+        })
 
         if user.account_type == "company":
             notify_admins(
@@ -87,25 +99,29 @@ class AuthService:
 
         if not user:
             logger.warning("Authentication failed", extra={
-                "event": "authentication_failure", "reason": "invalid_credentials",
+                "event": "login_failed", "reason": "invalid_credentials",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         if not user.is_active:
             logger.warning("Authentication failed", extra={
-                "event": "authentication_failure", "user_id": user.id, "reason": "inactive",
+                "event": "login_failed", "user_id": user.id, "reason": "inactive",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=403, detail="Account is deactivated")
 
         if user.banned_until and user.banned_until > datetime.utcnow():
             logger.warning("Authentication failed", extra={
-                "event": "authentication_failure", "user_id": user.id, "reason": "banned",
+                "event": "login_failed", "user_id": user.id, "reason": "banned",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=403, detail="Account is temporarily banned")
 
         if not verify_password(data.password, user.hashed_password):
             logger.warning("Authentication failed", extra={
-                "event": "authentication_failure", "user_id": user.id, "reason": "invalid_credentials",
+                "event": "login_failed", "user_id": user.id, "reason": "invalid_credentials",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -114,6 +130,12 @@ class AuthService:
         user.last_active_at = datetime.utcnow()
         db.add(refresh)
         db.commit()
+        logger.info("User logged in", extra={
+            "event": "login_success",
+            "user_id": user.id,
+            "account_type": user.account_type,
+            "outcome": "success",
+        })
 
         return _token_response(token, refresh.token)
 
@@ -131,6 +153,7 @@ class AuthService:
             logger.warning("Refresh token reuse rejected", extra={
                 "event": "refresh_token_reuse", "user_id": refresh.user_id,
                 "reason": "revoked",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -141,6 +164,7 @@ class AuthService:
             logger.warning("Expired refresh token rejected", extra={
                 "event": "authentication_failure", "user_id": refresh.user_id,
                 "reason": "expired_refresh_token",
+                "outcome": "failure",
             })
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -195,6 +219,7 @@ class AuthService:
                 logger.exception("Failed to queue password reset email", extra={
                     "event": "email_queue_failure",
                     "reason": "password_reset",
+                    "outcome": "failure",
                 })
         return {"message": "If the email exists, password reset instructions were sent"}
 
