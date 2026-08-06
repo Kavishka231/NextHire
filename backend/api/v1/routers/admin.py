@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import socket
 from urllib.parse import urlparse
@@ -58,8 +58,8 @@ def _user_row(db: Session, user: User) -> dict:
 
 @router.get("/summary")
 def summary(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
-    week_ago = datetime.utcnow() - timedelta(days=7)
-    month_ago = datetime.utcnow() - timedelta(days=30)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
     return {
         "total_users": db.query(User).count(),
         "new_users_week": db.query(User).filter(User.created_at >= week_ago).count(),
@@ -286,7 +286,7 @@ def add_featured_job(
     if not title:
         raise HTTPException(status_code=400, detail="Job title is required")
     job = Job(
-        external_id=payload.get("external_id") or f"manual-{int(datetime.utcnow().timestamp())}",
+        external_id=payload.get("external_id") or f"manual-{int(datetime.now(timezone.utc).timestamp())}",
         title=title,
         company=payload.get("company") or "",
         location=payload.get("location") or "",

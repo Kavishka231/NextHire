@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import Base
 
@@ -14,7 +14,7 @@ class SavedJob(Base):
     job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
     status = Column(String, default="saved", nullable=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="saved_jobs")
     job = relationship("Job")

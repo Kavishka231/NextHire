@@ -1,5 +1,6 @@
 import logging
 import time
+from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
@@ -23,12 +24,29 @@ configure_logging()
 configure_sentry()
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    if settings.SEED_ADMIN:
+        db_provider = application.dependency_overrides.get(get_db, get_db)
+        db_gen = db_provider()
+        db = next(db_gen)
+        try:
+            ensure_default_admin(db)
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
+    yield
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="NextHire — Job tracking platform API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -107,22 +125,6 @@ async def unexpected_error_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"},
     )
-
-
-@app.on_event("startup")
-def seed_admin_account():
-    if not settings.SEED_ADMIN:
-        return
-    db_provider = app.dependency_overrides.get(get_db, get_db)
-    db_gen = db_provider()
-    db = next(db_gen)
-    try:
-        ensure_default_admin(db)
-    finally:
-        try:
-            next(db_gen)
-        except StopIteration:
-            pass
 
 
 @app.get("/health", tags=["Health"])

@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class SavedJobCreate(BaseModel):
@@ -15,7 +15,6 @@ class SavedJobCreate(BaseModel):
 
 class SavedJobStatusUpdate(BaseModel):
     status: str
-
     @model_validator(mode="after")
     def valid_status(self):
         allowed = {"saved", "applied", "interview", "offer", "rejected"}
@@ -25,10 +24,8 @@ class SavedJobStatusUpdate(BaseModel):
 
 
 class SavedJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     external_id: str
     job_id: int
     status: str
-
-    class Config:
-        from_attributes = True

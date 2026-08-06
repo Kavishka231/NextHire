@@ -111,7 +111,7 @@ class AuthService:
             })
             raise HTTPException(status_code=403, detail="Account is deactivated")
 
-        if user.banned_until and user.banned_until > datetime.utcnow():
+        if user.banned_until and user.banned_until > datetime.now(timezone.utc):
             logger.warning("Authentication failed", extra={
                 "event": "login_failed", "user_id": user.id, "reason": "banned",
                 "outcome": "failure",
@@ -127,7 +127,7 @@ class AuthService:
 
         token = create_access_token({"user_id": user.id, "email": user.email})
         refresh = AuthService.create_refresh_session(user.id)
-        user.last_active_at = datetime.utcnow()
+        user.last_active_at = datetime.now(timezone.utc)
         db.add(refresh)
         db.commit()
         logger.info("User logged in", extra={
