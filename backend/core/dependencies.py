@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.security import decode_token
 from models.user import User
 from app.database import get_db
+from app.observability import set_user_context
 
 security = HTTPBearer()
 
@@ -25,6 +26,7 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
+    set_user_context(user.id)
     return user
 
 

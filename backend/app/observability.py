@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import sys
+from contextvars import ContextVar
 from datetime import datetime, timezone
 
 import sentry_sdk
@@ -33,6 +34,9 @@ SAFE_LOG_FIELDS = {
     "status_code",
     "sent",
     "failed",
+    "request_id",
+    "correlation_id",
+    "response_time_ms",
 }
 
 SENSITIVE_TEXT = re.compile(
@@ -41,6 +45,29 @@ SENSITIVE_TEXT = re.compile(
     r"\s*[=:]\s*)[^\s&,]+|"
     r"([?&]token=)[^&\s]+"
 )
+
+request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
+correlation_id_context: ContextVar[str | None] = ContextVar("correlation_id", default=None)
+user_id_context: ContextVar[int | str | None] = ContextVar("user_id", default=None)
+
+
+def set_request_context(request_id: str, correlation_id: str):
+    request_token = request_id_context.set(request_id)
+    correlation_token = correlation_id_context.set(correlation_id)
+    return request_token, correlation_token
+
+
+def reset_request_context(request_token, correlation_token) -> None:
+    request_id_context.reset(request_token)
+    correlation_id_context.reset(correlation_token)
+
+
+def set_user_context(user_id: int | str):
+    return user_id_context.set(user_id)
+
+
+def reset_user_context(user_token) -> None:
+    user_id_context.reset(user_token)
 
 
 def redact_text(value: str) -> str:
@@ -58,6 +85,14 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": redact_text(record.getMessage()),
         }
+        context_fields = {
+            "request_id": request_id_context.get(),
+            "correlation_id": correlation_id_context.get(),
+            "user_id": user_id_context.get(),
+        }
+        for field, value in context_fields.items():
+            if value is not None and field not in payload:
+                payload[field] = value
         for field in SAFE_LOG_FIELDS:
             value = getattr(record, field, None)
             if value is not None:
