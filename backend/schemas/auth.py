@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 def _validate_password_length(value: str) -> str:
@@ -67,6 +67,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: EmailStr
     full_name: str
@@ -75,10 +77,6 @@ class UserResponse(BaseModel):
     company_status: str = "none"
     company_verified: bool = False
     is_admin: bool = False
-
-    class Config:
-        from_attributes = True
-
 
 class ChangePasswordRequest(BaseModel):
     current_password: str

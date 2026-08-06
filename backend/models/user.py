@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class User(Base):
@@ -24,7 +24,7 @@ class User(Base):
     company_verified = Column(Boolean, default=False, nullable=False)
     banned_until = Column(DateTime, nullable=True)
     last_active_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")

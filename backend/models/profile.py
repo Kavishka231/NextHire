@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
@@ -46,7 +46,12 @@ class UserProfile(Base):
     volunteer_experience = Column(JSON, default=list, nullable=False)
     achievements = Column(JSON, default=list, nullable=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     user = relationship("User", back_populates="profile")
