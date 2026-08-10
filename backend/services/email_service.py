@@ -7,6 +7,8 @@ from app.config import settings
 
 def _send(to_email: str, subject: str, html_body: str):
     """Low-level SMTP send. Raises on failure."""
+    if not settings.EMAIL_ENABLED:
+        raise RuntimeError("Email delivery is disabled")
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>"

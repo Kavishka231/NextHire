@@ -1,10 +1,13 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.email_service import _send
 from tasks.email_task import _admin_message_html, send_broadcast_email
 
 
 def test_smtp_transport_uses_timeout_tls_and_login(monkeypatch):
+    monkeypatch.setattr("services.email_service.settings.EMAIL_ENABLED", True)
     monkeypatch.setattr("services.email_service.settings.MAIL_USERNAME", "smtp-user")
     monkeypatch.setattr("services.email_service.settings.MAIL_PASSWORD", "smtp-password")
     smtp = MagicMock()
@@ -20,6 +23,7 @@ def test_smtp_transport_uses_timeout_tls_and_login(monkeypatch):
 
 
 def test_smtp_transport_skips_login_without_credentials(monkeypatch):
+    monkeypatch.setattr("services.email_service.settings.EMAIL_ENABLED", True)
     monkeypatch.setattr("services.email_service.settings.MAIL_USERNAME", "")
     monkeypatch.setattr("services.email_service.settings.MAIL_PASSWORD", "")
     smtp = MagicMock()
@@ -30,6 +34,12 @@ def test_smtp_transport_skips_login_without_credentials(monkeypatch):
 
     smtp.login.assert_not_called()
     smtp.sendmail.assert_called_once()
+
+
+def test_smtp_transport_rejects_delivery_when_disabled(monkeypatch):
+    monkeypatch.setattr("services.email_service.settings.EMAIL_ENABLED", False)
+    with pytest.raises(RuntimeError, match="Email delivery is disabled"):
+        _send("user@example.com", "Subject", "<p>Body</p>")
 
 
 def test_admin_email_body_is_html_escaped():

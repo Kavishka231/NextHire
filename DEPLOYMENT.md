@@ -11,6 +11,10 @@ Copy `.env.example` to `.env`, replace every `replace-*` value, and set:
 - the exact comma-separated HTTPS origins in `CORS_ORIGINS`
 - SMTP and Adzuna credentials when those integrations are required
 
+Set `EMAIL_ENABLED=true` only after SMTP credentials, sender identity, and
+delivery monitoring are configured. When it is enabled in production, startup
+rejects missing or placeholder SMTP credentials and an invalid sender address.
+
 Password-reset links use `PUBLIC_APP_URL`, expire after
 `RESET_TOKEN_EXPIRE_MINUTES`, and are delivered by the Celery worker. Verify
 SMTP delivery and the public reset URL before opening registration.
