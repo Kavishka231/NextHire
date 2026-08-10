@@ -4,7 +4,9 @@ from unittest.mock import patch
 
 from models.password_reset_token import PasswordResetToken
 from models.refresh_token import RefreshToken
+from models.user import User
 from app.config import settings
+from core.security import create_access_token
 from tests.conftest import TestingSessionLocal
 
 REGISTER_URL      = "/api/v1/auth/register"
@@ -118,6 +120,35 @@ def test_me_authenticated(client, registered_user, auth_headers):
     res = client.get(ME_URL, headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["email"] == registered_user["email"]
+
+
+def test_token_with_old_token_version_is_rejected(client, registered_user):
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.email == registered_user["email"]).one()
+        old_token = create_access_token({
+            "user_id": user.id,
+            "email": user.email,
+            "token_version": user.token_version - 1,
+        })
+    finally:
+        db.close()
+
+    response = client.get(ME_URL, headers={"Authorization": f"Bearer {old_token}"})
+    assert response.status_code == 401
+
+
+def test_expired_ban_does_not_block_existing_token(client, registered_user, auth_headers):
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.email == registered_user["email"]).one()
+        user.banned_until = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get(ME_URL, headers=auth_headers)
+    assert response.status_code == 200
 
 
 def test_me_unauthenticated(client):
@@ -247,6 +278,7 @@ def test_reset_password_is_one_time_and_revokes_sessions(client):
         "password": VALID_USER["password"],
     })
     old_refresh_token = login.cookies.get(settings.REFRESH_COOKIE_NAME)
+    old_access_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     with patch("services.auth_service.send_password_reset_email.delay") as queue_email:
         requested = client.post(FORGOT_URL, json={"email": VALID_USER["email"]})
@@ -258,6 +290,13 @@ def test_reset_password_is_one_time_and_revokes_sessions(client):
         "new_password": "replacement-password-456",
     })
     assert reset.status_code == 200
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.email == VALID_USER["email"]).one()
+        assert user.token_version == 1
+    finally:
+        db.close()
+    assert client.get(ME_URL, headers=old_access_headers).status_code == 401
     client.cookies.set(settings.REFRESH_COOKIE_NAME, old_refresh_token)
     assert client.post(REFRESH_URL).status_code == 401
     assert client.post(LOGIN_URL, json={
@@ -326,6 +365,13 @@ def test_change_password(client, registered_user, auth_headers):
         "new_password": "newpassword456",
     }, headers=auth_headers)
     assert res.status_code == 200
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.email == registered_user["email"]).one()
+        assert user.token_version == 1
+    finally:
+        db.close()
+    assert client.get(ME_URL, headers=auth_headers).status_code == 401
     client.cookies.set(settings.REFRESH_COOKIE_NAME, old_refresh_token)
     assert client.post(REFRESH_URL).status_code == 401
 
@@ -342,6 +388,8 @@ def test_change_password(client, registered_user, auth_headers):
         "password": "newpassword456",
     })
     assert login_res2.status_code == 200
+    new_headers = {"Authorization": f"Bearer {login_res2.json()['access_token']}"}
+    assert client.get(ME_URL, headers=new_headers).status_code == 200
 
 
 def test_change_password_wrong_current(client, registered_user, auth_headers):

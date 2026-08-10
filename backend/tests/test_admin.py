@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 from app.config import settings
+from models.user import User
+from tests.conftest import TestingSessionLocal
 
 ADMIN_EMAIL = "admin@nexthire.com"
 ADMIN_PASSWORD = "Admin@Test12345"
@@ -13,6 +16,14 @@ def admin_headers(client):
     })
     token = res.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def token_version_for(user_id: int) -> int:
+    db = TestingSessionLocal()
+    try:
+        return db.query(User).filter(User.id == user_id).one().token_version
+    finally:
+        db.close()
 
 
 def test_admin_requires_admin(client, auth_headers):
@@ -43,6 +54,7 @@ def test_disabling_user_revokes_refresh_sessions(client):
         "password": "password123",
     })
     user_refresh = login.cookies.get(settings.REFRESH_COOKIE_NAME)
+    user_access = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     response = client.patch(
         f"/api/v1/admin/users/{user['id']}",
@@ -51,8 +63,33 @@ def test_disabling_user_revokes_refresh_sessions(client):
     )
 
     assert response.status_code == 200
+    assert token_version_for(user["id"]) == 1
+    assert client.get("/api/v1/auth/me", headers=user_access).status_code == 401
     client.cookies.set(settings.REFRESH_COOKIE_NAME, user_refresh)
     assert client.post("/api/v1/auth/refresh").status_code == 401
+
+
+def test_banning_user_invalidates_existing_access_token(client):
+    user = client.post("/api/v1/auth/register", json={
+        "email": "banned@example.com",
+        "full_name": "Banned User",
+        "password": "password123",
+    }).json()
+    login = client.post("/api/v1/auth/login", json={
+        "email": "banned@example.com",
+        "password": "password123",
+    })
+    user_access = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    response = client.patch(
+        f"/api/v1/admin/users/{user['id']}",
+        json={"banned_until": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()},
+        headers=admin_headers(client),
+    )
+
+    assert response.status_code == 200
+    assert token_version_for(user["id"]) == 1
+    assert client.get("/api/v1/auth/me", headers=user_access).status_code == 401
 
 
 def test_admin_password_reset_revokes_refresh_sessions(client):
@@ -66,6 +103,7 @@ def test_admin_password_reset_revokes_refresh_sessions(client):
         "password": "password123",
     })
     user_refresh = login.cookies.get(settings.REFRESH_COOKIE_NAME)
+    user_access = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     response = client.post(
         f"/api/v1/admin/users/{user['id']}/reset-password",
@@ -74,6 +112,8 @@ def test_admin_password_reset_revokes_refresh_sessions(client):
     )
 
     assert response.status_code == 200
+    assert token_version_for(user["id"]) == 1
+    assert client.get("/api/v1/auth/me", headers=user_access).status_code == 401
     client.cookies.set(settings.REFRESH_COOKIE_NAME, user_refresh)
     assert client.post("/api/v1/auth/refresh").status_code == 401
 

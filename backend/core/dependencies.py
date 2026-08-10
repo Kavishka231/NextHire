@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -25,6 +27,18 @@ def get_current_user(
 
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is inactive")
+    if user.banned_until:
+        banned_until = (
+            user.banned_until
+            if user.banned_until.tzinfo
+            else user.banned_until.replace(tzinfo=timezone.utc)
+        )
+        if banned_until > datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Account is temporarily banned")
+    if payload.get("token_version") != user.token_version:
+        raise HTTPException(status_code=401, detail="Token has been revoked")
 
     set_user_context(user.id)
     return user

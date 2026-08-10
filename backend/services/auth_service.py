@@ -48,6 +48,19 @@ class AuthService:
         ).update({"is_revoked": True}, synchronize_session=False)
 
     @staticmethod
+    def invalidate_user_sessions(db: Session, user: User) -> None:
+        user.token_version += 1
+        AuthService.revoke_all_sessions(db, user.id)
+
+    @staticmethod
+    def create_user_access_token(user: User) -> str:
+        return create_access_token({
+            "user_id": user.id,
+            "email": user.email,
+            "token_version": user.token_version,
+        })
+
+    @staticmethod
     def register(db: Session, data: RegisterRequest):
         existing_user = db.query(User).filter(User.email == data.email).first()
 
@@ -125,7 +138,7 @@ class AuthService:
             })
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        token = create_access_token({"user_id": user.id, "email": user.email})
+        token = AuthService.create_user_access_token(user)
         refresh = AuthService.create_refresh_session(user.id)
         user.last_active_at = datetime.now(timezone.utc)
         db.add(refresh)
@@ -183,7 +196,7 @@ class AuthService:
         db.add(rotated_refresh)
         db.commit()
         return _token_response(
-            create_access_token({"user_id": user.id, "email": user.email}),
+            AuthService.create_user_access_token(user),
             rotated_refresh.token,
         )
 
@@ -254,7 +267,7 @@ class AuthService:
 
         user.hashed_password = hash_password(new_password)
         reset_token.used_at = now
-        AuthService.revoke_all_sessions(db, user.id)
+        AuthService.invalidate_user_sessions(db, user)
         db.query(PasswordResetToken).filter(
             PasswordResetToken.user_id == user.id,
             PasswordResetToken.id != reset_token.id,
@@ -269,6 +282,6 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         user.hashed_password = hash_password(new_password)
-        AuthService.revoke_all_sessions(db, user.id)
+        AuthService.invalidate_user_sessions(db, user)
         db.commit()
         return {"message": "Password changed"}

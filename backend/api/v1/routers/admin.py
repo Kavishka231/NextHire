@@ -150,13 +150,28 @@ def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    invalidate_sessions = False
     for field in ["is_active", "is_verified"]:
         if field in payload:
-            setattr(user, field, bool(payload[field]))
+            new_value = bool(payload[field])
+            if getattr(user, field) != new_value:
+                setattr(user, field, new_value)
+                if field == "is_verified" or not new_value:
+                    invalidate_sessions = True
     if "banned_until" in payload:
-        user.banned_until = datetime.fromisoformat(payload["banned_until"]) if payload["banned_until"] else None
-    if not user.is_active or user.banned_until:
-        AuthService.revoke_all_sessions(db, user.id)
+        new_banned_until = datetime.fromisoformat(payload["banned_until"]) if payload["banned_until"] else None
+        if new_banned_until != user.banned_until:
+            user.banned_until = new_banned_until
+            if new_banned_until:
+                comparable_ban = (
+                    new_banned_until
+                    if new_banned_until.tzinfo
+                    else new_banned_until.replace(tzinfo=timezone.utc)
+                )
+                if comparable_ban > datetime.now(timezone.utc):
+                    invalidate_sessions = True
+    if invalidate_sessions:
+        AuthService.invalidate_user_sessions(db, user)
     db.commit()
     logger.info("Admin security operation", extra={
         "event": "admin_security_operation",
@@ -204,7 +219,7 @@ def reset_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = hash_password(new_password)
-    AuthService.revoke_all_sessions(db, user.id)
+    AuthService.invalidate_user_sessions(db, user)
     db.commit()
     logger.info("Admin security operation", extra={
         "event": "admin_security_operation",

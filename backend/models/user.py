@@ -11,6 +11,7 @@ class User(Base):
     full_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    token_version = Column(Integer, default=0, nullable=False)
 
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
