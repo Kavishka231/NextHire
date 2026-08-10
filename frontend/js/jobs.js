@@ -1,4 +1,6 @@
 let savedJobs = [];
+let savedJobsPage = 1;
+const savedJobsPageSize = 25;
 
 const statusConfig = [
   ["saved", "Saved"],
@@ -24,20 +26,25 @@ async function loadJobsUser() {
   await loadCurrentUserNav();
 }
 
-async function loadJobs() {
+async function loadJobs(page = savedJobsPage) {
   try {
-    savedJobs = await api.get("/saved-jobs");
-    renderSavedJobs(savedJobs);
+    const data = await api.get(`/saved-jobs?${paginationQuery(page, savedJobsPageSize)}`);
+    const previousPage = previousPageForEmptyResult(data);
+    if (previousPage) return loadJobs(previousPage);
+    savedJobsPage = data.page;
+    savedJobs = data.items;
+    renderSavedJobs(savedJobs, data);
   } catch (err) {
     if (err.status === 401) logout();
     console.error(err);
   }
 }
 
-function renderSavedJobs(jobs) {
-  setText("totalJobsCount", jobs.length);
-  updateTabCounts(jobs);
+function renderSavedJobs(jobs, pageData) {
+  setText("totalJobsCount", pageData.total);
+  updateTabCounts(jobs, pageData.total);
   renderList(jobs);
+  renderCollectionPagination("listViewContainer", pageData, loadJobs);
 }
 
 function renderList(jobs) {
@@ -71,10 +78,10 @@ async function updateStatus(savedJobId, status) {
   }
 }
 
-function updateTabCounts(jobs) {
+function updateTabCounts(jobs, total) {
   document.querySelectorAll(".status-tab").forEach(tab => {
     const status = tab.dataset.status;
-    const count = status === "all" ? jobs.length : jobs.filter(job => job.status === status).length;
+    const count = status === "all" ? total : jobs.filter(job => job.status === status).length;
     const el = tab.querySelector(".status-tab-count");
     if (el) el.textContent = count;
   });

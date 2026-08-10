@@ -1,5 +1,8 @@
 let employerJobs = [];
 let employerApplications = [];
+let employerJobsPage = 1;
+let employerApplicationsPage = 1;
+const employerPageSize = 25;
 const applicationStatusTransitions = {
   submitted: ["reviewing", "rejected", "withdrawn"],
   reviewing: ["shortlisted", "interview", "rejected", "withdrawn"],
@@ -46,10 +49,25 @@ async function loadEmployer() {
   }
   status.innerHTML = `${escHtml(user.company_name || user.full_name)} <span class="verified-badge">Verified company</span>`;
   form.classList.remove("disabled-panel");
-  employerJobs = await api.get("/jobs/company/mine");
-  employerApplications = await api.get("/applications/company");
-  renderEmployerJobs();
-  renderEmployerApplications();
+  await Promise.all([loadEmployerJobs(), loadEmployerApplications()]);
+}
+
+async function loadEmployerJobs(page = employerJobsPage) {
+  const data = await api.get(`/jobs/company/mine?${paginationQuery(page, employerPageSize)}`);
+  const previousPage = previousPageForEmptyResult(data);
+  if (previousPage) return loadEmployerJobs(previousPage);
+  employerJobsPage = data.page;
+  employerJobs = data.items;
+  renderEmployerJobs(data);
+}
+
+async function loadEmployerApplications(page = employerApplicationsPage) {
+  const data = await api.get(`/applications/company?${paginationQuery(page, employerPageSize)}`);
+  const previousPage = previousPageForEmptyResult(data);
+  if (previousPage) return loadEmployerApplications(previousPage);
+  employerApplicationsPage = data.page;
+  employerApplications = data.items;
+  renderEmployerApplications(data);
 }
 
 async function saveCompanyProfile(event) {
@@ -62,7 +80,7 @@ async function saveCompanyProfile(event) {
   await loadEmployer();
 }
 
-function renderEmployerJobs() {
+function renderEmployerJobs(pageData) {
   const root = document.getElementById("companyJobsList");
   root.innerHTML = employerJobs.length ? employerJobs.map(job => `
     <article class="employer-job-row">
@@ -78,9 +96,10 @@ function renderEmployerJobs() {
       </div>
     </article>
   `).join("") : `<div class="empty-mini">No company job posts yet.</div>`;
+  renderCollectionPagination("companyJobsList", pageData, loadEmployerJobs);
 }
 
-function renderEmployerApplications() {
+function renderEmployerApplications(pageData) {
   const root = document.getElementById("companyApplicationsList");
   if (!root) return;
   root.innerHTML = employerApplications.length ? employerApplications.map(application => `
@@ -111,6 +130,7 @@ function renderEmployerApplications() {
       </select>
     </article>
   `).join("") : `<div class="empty-mini">No applications yet. New applicants will appear here and notify your company account.</div>`;
+  renderCollectionPagination("companyApplicationsList", pageData, loadEmployerApplications);
 }
 
 async function saveCompanyJob(event) {
@@ -133,6 +153,7 @@ async function saveCompanyJob(event) {
   const job = jobId ? await api.put(`/jobs/company/${jobId}`, payload) : await api.post("/jobs/company", payload);
   showToast(jobId ? "Job updated" : "Job published", "success");
   clearJobForm();
+  employerJobsPage = 1;
   await loadEmployer();
 }
 
@@ -159,11 +180,10 @@ async function updateApplicationStatus(id, status) {
   try {
     await api.patch(`/applications/${id}/status`, { status });
     showToast("Application status updated", "success");
-    employerApplications = await api.get("/applications/company");
-    renderEmployerApplications();
+    await loadEmployerApplications();
   } catch (error) {
     showToast(error.message || "Unable to update application status", "error");
-    renderEmployerApplications();
+    await loadEmployerApplications();
   }
 }
 

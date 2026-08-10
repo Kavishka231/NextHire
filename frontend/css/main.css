@@ -1153,6 +1153,15 @@ button:hover,
   margin-top: 32px;
 }
 
+.collection-pagination {
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.collection-pagination span {
+  color: var(--muted);
+}
+
 .je-section-head,
 .results-head,
 .profile-section-head,

@@ -1,3 +1,8 @@
+let adminUsersPage = 1;
+let adminJobsPage = 1;
+let adminNotesPage = 1;
+const adminPageSize = 25;
+
 async function initAdmin() {
   if (!(await requireAuth())) return;
   bindAdminEvents();
@@ -5,7 +10,7 @@ async function initAdmin() {
 }
 
 function bindAdminEvents() {
-  document.getElementById("adminUserSearch")?.addEventListener("input", debounce(loadUsers, 250));
+  document.getElementById("adminUserSearch")?.addEventListener("input", debounce(() => loadUsers(1), 250));
   document.getElementById("featuredJobForm")?.addEventListener("submit", addFeaturedJob);
   document.getElementById("broadcastForm")?.addEventListener("submit", sendBroadcast);
   document.getElementById("adminCreateForm")?.addEventListener("submit", createAdmin);
@@ -54,9 +59,13 @@ async function loadSummary() {
   `).join("");
 }
 
-async function loadUsers() {
+async function loadUsers(page = adminUsersPage) {
   const q = document.getElementById("adminUserSearch")?.value || "";
-  const users = await api.get(`/admin/users?q=${encodeURIComponent(q)}`);
+  const data = await api.get(`/admin/users?q=${encodeURIComponent(q)}&${paginationQuery(page, adminPageSize)}`);
+  const previousPage = previousPageForEmptyResult(data);
+  if (previousPage) return loadUsers(previousPage);
+  adminUsersPage = data.page;
+  const users = data.items;
   document.getElementById("adminUsers").innerHTML = `
     <thead><tr><th>User</th><th>Joined</th><th>Jobs</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${users.map(user => `
@@ -73,13 +82,18 @@ async function loadUsers() {
         </td>
       </tr>
     `).join("")}</tbody>`;
+  renderCollectionPagination("adminUsers", data, loadUsers);
 }
 
-async function loadJobs() {
-  const jobs = await api.get("/admin/jobs");
+async function loadJobs(page = adminJobsPage) {
+  const data = await api.get(`/admin/jobs?${paginationQuery(page, adminPageSize)}`);
+  const previousPage = previousPageForEmptyResult(data);
+  if (previousPage) return loadJobs(previousPage);
+  adminJobsPage = data.page;
+  const jobs = data.items;
   document.getElementById("adminJobs").innerHTML = `
     <thead><tr><th>Job</th><th>Location</th><th>Popularity</th><th>Actions</th></tr></thead>
-    <tbody>${jobs.slice(0, 40).map(job => `
+    <tbody>${jobs.map(job => `
       <tr>
         <td><strong>${escHtml(job.title)}</strong><small>${escHtml(job.company || "")} ${job.is_featured ? "· Featured" : ""}</small></td>
         <td>${escHtml(job.location || "")}</td>
@@ -91,16 +105,21 @@ async function loadJobs() {
         </td>
       </tr>
     `).join("")}</tbody>`;
+  renderCollectionPagination("adminJobs", data, loadJobs);
 }
 
-async function loadModeration() {
+async function loadModeration(page = adminNotesPage) {
   const [notes, profiles] = await Promise.all([
-    api.get("/admin/moderation/notes"),
+    api.get(`/admin/moderation/notes?${paginationQuery(page, adminPageSize)}`),
     api.get("/admin/moderation/profiles"),
   ]);
-  document.getElementById("adminNotes").innerHTML = notes.length ? notes.map(note => `
+  const previousPage = previousPageForEmptyResult(notes);
+  if (previousPage) return loadModeration(previousPage);
+  adminNotesPage = notes.page;
+  document.getElementById("adminNotes").innerHTML = notes.items.length ? notes.items.map(note => `
     <div class="admin-list-item"><span>${escHtml(note.user_email)}</span><p>${escHtml(note.content)}</p><button onclick="deleteNote(${note.id})">Delete</button></div>
   `).join("") : `<div class="chart-empty">No notes yet.</div>`;
+  renderCollectionPagination("adminNotes", notes, loadModeration);
   document.getElementById("adminProfiles").innerHTML = profiles.length ? profiles.map(row => `
     <div class="admin-list-item"><span>${escHtml(row.user.email)}</span><p>${escHtml(row.profile?.headline || row.profile?.bio || "No public text")}</p><button onclick="clearProfile(${row.profile.id})">Clear content</button></div>
   `).join("") : `<div class="chart-empty">No profiles yet.</div>`;
@@ -194,7 +213,8 @@ async function addFeaturedJob(event) {
   await api.post("/admin/jobs", Object.fromEntries(new FormData(form).entries()));
   form.reset();
   showToast("Featured job added", "success");
-  loadJobs();
+  adminJobsPage = 1;
+  loadJobs(1);
 }
 
 async function sendBroadcast(event) {

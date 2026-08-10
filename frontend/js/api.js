@@ -98,3 +98,41 @@ const api = {
     return request(endpoint, { ...options, method: "DELETE" });
   },
 };
+
+function paginationQuery(page, pageSize = 25) {
+  return `page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`;
+}
+
+function previousPageForEmptyResult(pageData) {
+  return pageData.page > 1 && pageData.items.length === 0 ? pageData.page - 1 : null;
+}
+
+function renderCollectionPagination(anchorId, pageData, onPageChange) {
+  const anchor = document.getElementById(anchorId);
+  if (!anchor) return;
+
+  const paginationId = `${anchorId}Pagination`;
+  let root = document.getElementById(paginationId);
+  const totalPages = Math.max(1, Math.ceil(pageData.total / pageData.page_size));
+  if (totalPages <= 1) {
+    root?.remove();
+    return;
+  }
+
+  if (!root) {
+    root = document.createElement("nav");
+    root.id = paginationId;
+    root.className = "pagination collection-pagination";
+    root.setAttribute("aria-label", "Collection pagination");
+    anchor.insertAdjacentElement("afterend", root);
+  }
+
+  root.innerHTML = `
+    <button class="page-btn" type="button" data-page="${pageData.page - 1}" ${pageData.page <= 1 ? "disabled" : ""}>Previous</button>
+    <span>Page ${pageData.page} of ${totalPages} <small>(${pageData.total} total)</small></span>
+    <button class="page-btn" type="button" data-page="${pageData.page + 1}" ${pageData.page >= totalPages ? "disabled" : ""}>Next</button>
+  `;
+  root.querySelectorAll("button:not(:disabled)").forEach(button => {
+    button.addEventListener("click", () => onPageChange(Number(button.dataset.page)));
+  });
+}
