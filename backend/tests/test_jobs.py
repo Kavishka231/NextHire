@@ -44,3 +44,23 @@ def test_categories(client, auth_headers):
     res = client.get(CATS_URL, headers=auth_headers)
     assert res.status_code == 200
     assert isinstance(res.json(), list)
+
+
+def test_saving_same_job_twice_returns_conflict(client, auth_headers):
+    search = client.get(SEARCH_URL, params={"keywords": "developer"})
+    external_id = search.json()["jobs"][0]["external_id"]
+
+    first = client.post(
+        "/api/v1/saved-jobs",
+        json={"external_id": external_id},
+        headers=auth_headers,
+    )
+    duplicate = client.post(
+        "/api/v1/saved-jobs",
+        json={"external_id": external_id},
+        headers=auth_headers,
+    )
+
+    assert first.status_code == 200
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "Job already saved"

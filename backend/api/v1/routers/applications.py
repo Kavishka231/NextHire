@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -77,7 +78,14 @@ def submit_application(
             f"{application.applicant_name} applied for {job.title}.",
             "job_application",
         )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="You have already applied for this job",
+        ) from exc
     db.refresh(application)
     logger.info("Application submitted", extra={
         "event": "application_submitted",

@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from models.saved_job import SavedJob
 from models.job import Job
@@ -24,28 +25,20 @@ class SavedJobService:
                 detail="Job not found"
             )
 
-        existing = (
-            db.query(SavedJob)
-            .filter(
-                SavedJob.user_id == user_id,
-                SavedJob.job_id == job.id
-            )
-            .first()
-        )
-
-        if existing:
-            raise HTTPException(
-                status_code=400,
-                detail="Job already saved"
-            )
-
         saved_job = SavedJob(
             user_id=user_id,
             job_id=job.id
         )
 
         db.add(saved_job)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Job already saved",
+            ) from exc
         db.refresh(saved_job)
         logger.info("Saved job created", extra={
             "event": "saved_job_created",

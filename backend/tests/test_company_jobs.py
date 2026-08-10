@@ -133,6 +133,20 @@ def test_candidate_applies_and_company_reviews_application(client):
     assert submitted.status_code == 200
     assert submitted.json()["job_title"] == "Python Developer"
 
+    duplicate = client.post(
+        "/api/v1/applications",
+        json={
+            "external_id": created.json()["external_id"],
+            "use_profile": False,
+            "applicant_name": "Candidate User",
+            "applicant_email": "candidate@example.com",
+            "cover_letter": "A second submission should be rejected.",
+        },
+        headers=candidate_auth,
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "You have already applied for this job"
+
     notes = client.get("/api/v1/notifications", headers=company_auth).json()
     assert any(note["kind"] == "job_application" for note in notes)
 

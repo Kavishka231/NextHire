@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -7,6 +7,13 @@ from app.database import Base
 
 class JobApplication(Base):
     __tablename__ = "job_applications"
+    __table_args__ = (
+        UniqueConstraint(
+            "applicant_user_id",
+            "job_id",
+            name="uq_job_applications_applicant_job",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)

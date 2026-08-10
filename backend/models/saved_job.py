@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -7,6 +7,9 @@ from app.database import Base
 
 class SavedJob(Base):
     __tablename__ = "saved_jobs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_id", name="uq_saved_jobs_user_job"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
