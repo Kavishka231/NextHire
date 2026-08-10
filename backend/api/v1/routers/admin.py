@@ -19,7 +19,18 @@ from models.saved_job import SavedJob
 from models.search_log import SearchLog
 from models.user import User
 from schemas.auth import RegisterRequest
+from schemas.admin import (
+    AdminFeaturedJobCreate,
+    AdminJobUpdate,
+    AdminPasswordResetRequest,
+    AdminRole,
+    AdminUserSecurityUpdate,
+    CompanyApprovalRequest,
+    ProfileModerationRequest,
+)
 from schemas.pagination import PaginationParams, paginated_response, pagination_params
+from schemas.validation import validate_salary_range
+from services.admin_audit_service import record_admin_audit
 from services.auth_service import AuthService
 from core.rate_limit import rate_limit
 from services.notification_service import create_notification
@@ -32,6 +43,98 @@ logger = logging.getLogger(__name__)
 class AdminEmailRequest(BaseModel):
     subject: str = Field(min_length=1, max_length=200)
     body: str = Field(min_length=1, max_length=20_000)
+
+
+def _aware_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _is_active_super_admin(user: User, *, is_active=None, banned_until=None) -> bool:
+    active = user.is_active if is_active is None else is_active
+    ban = user.banned_until if banned_until is None else banned_until
+    return bool(
+        user.is_admin
+        and user.admin_role == "super_admin"
+        and active
+        and (_aware_utc(ban) is None or _aware_utc(ban) <= datetime.now(timezone.utc))
+    )
+
+
+def _protect_last_active_super_admin(
+    db: Session,
+    target: User,
+    *,
+    is_active=None,
+    banned_until=None,
+    deleting: bool = False,
+) -> None:
+    if not target.is_admin or target.admin_role != "super_admin":
+        return
+    super_admins = (
+        db.query(User)
+        .filter(
+            User.is_admin.is_(True),
+            User.admin_role == "super_admin",
+        )
+        .order_by(User.id)
+        .with_for_update()
+        .populate_existing()
+        .all()
+    )
+    locked_target = next((user for user in super_admins if user.id == target.id), target)
+    if not _is_active_super_admin(locked_target):
+        return
+    remains_active = False if deleting else _is_active_super_admin(
+        locked_target,
+        is_active=is_active,
+        banned_until=banned_until,
+    )
+    if remains_active:
+        return
+    if not any(
+        _is_active_super_admin(user)
+        for user in super_admins
+        if user.id != locked_target.id
+    ):
+        raise HTTPException(status_code=409, detail="The final active super-admin cannot be disabled")
+
+
+def _require_user_management_permission(actor: User, target: User) -> None:
+    if target.is_admin and actor.admin_role != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super-admins can modify administrator accounts")
+
+
+def _record_privileged_change(
+    db: Session,
+    actor: User,
+    action: str,
+    resource_type: str,
+    *,
+    resource_id=None,
+    target_user_id=None,
+    details=None,
+) -> None:
+    record_admin_audit(
+        db,
+        actor,
+        action,
+        resource_type,
+        resource_id=resource_id,
+        target_user_id=target_user_id,
+        details=details,
+    )
+    logger.info("Admin security operation", extra={
+        "event": "admin_security_operation",
+        "action": action,
+        "actor_user_id": actor.id,
+        "target_user_id": target_user_id,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+    })
 
 
 def _user_payload(user: User, saved_count: int, applied_count: int) -> dict:
@@ -132,14 +235,14 @@ def pending_companies(db: Session = Depends(get_db), admin: User = Depends(requi
 @router.patch("/companies/{user_id}/approval")
 def approve_company(
     user_id: int,
-    payload: dict,
+    payload: CompanyApprovalRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin", "moderator")),
 ):
     user = db.query(User).filter(User.id == user_id, User.account_type == "company").first()
     if not user:
         raise HTTPException(status_code=404, detail="Company account not found")
-    approved = bool(payload.get("approved"))
+    approved = payload.approved
     user.company_status = "approved" if approved else "rejected"
     user.company_verified = approved
     create_notification(
@@ -149,13 +252,16 @@ def approve_company(
         "Your company can now post jobs on NextHire." if approved else "Your company verification request was rejected by admin.",
         "company_approval",
     )
+    _record_privileged_change(
+        db,
+        admin,
+        "approve_company" if approved else "reject_company",
+        "user",
+        resource_id=user.id,
+        target_user_id=user.id,
+        details={"approved": approved},
+    )
     db.commit()
-    logger.info("Admin security operation", extra={
-        "event": "admin_security_operation",
-        "action": "approve_company" if approved else "reject_company",
-        "actor_user_id": admin.id,
-        "target_user_id": user.id,
-    })
     return _user_row(db, user)
 
 
@@ -171,42 +277,50 @@ def user_detail(user_id: int, db: Session = Depends(get_db), admin: User = Depen
 @router.patch("/users/{user_id}")
 def update_user(
     user_id: int,
-    payload: dict,
+    payload: AdminUserSecurityUpdate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin", "moderator")),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _require_user_management_permission(admin, user)
+    changes = payload.model_dump(exclude_unset=True)
+    proposed_active = changes.get("is_active", user.is_active)
+    proposed_ban = changes.get("banned_until", user.banned_until)
+    _protect_last_active_super_admin(
+        db,
+        user,
+        is_active=proposed_active,
+        banned_until=proposed_ban,
+    )
     invalidate_sessions = False
     for field in ["is_active", "is_verified"]:
-        if field in payload:
-            new_value = bool(payload[field])
+        if field in changes:
+            new_value = changes[field]
             if getattr(user, field) != new_value:
                 setattr(user, field, new_value)
                 if field == "is_verified" or not new_value:
                     invalidate_sessions = True
-    if "banned_until" in payload:
-        new_banned_until = datetime.fromisoformat(payload["banned_until"]) if payload["banned_until"] else None
-        if new_banned_until != user.banned_until:
+    if "banned_until" in changes:
+        new_banned_until = changes["banned_until"]
+        if _aware_utc(new_banned_until) != _aware_utc(user.banned_until):
             user.banned_until = new_banned_until
             if new_banned_until:
-                comparable_ban = (
-                    new_banned_until
-                    if new_banned_until.tzinfo
-                    else new_banned_until.replace(tzinfo=timezone.utc)
-                )
-                if comparable_ban > datetime.now(timezone.utc):
+                if _aware_utc(new_banned_until) > datetime.now(timezone.utc):
                     invalidate_sessions = True
     if invalidate_sessions:
         AuthService.invalidate_user_sessions(db, user)
+    _record_privileged_change(
+        db,
+        admin,
+        "update_user_security",
+        "user",
+        resource_id=user.id,
+        target_user_id=user.id,
+        details={"fields": sorted(changes)},
+    )
     db.commit()
-    logger.info("Admin security operation", extra={
-        "event": "admin_security_operation",
-        "action": "update_user_security",
-        "actor_user_id": admin.id,
-        "target_user_id": user.id,
-    })
     db.refresh(user)
     return _user_row(db, user)
 
@@ -217,51 +331,54 @@ def delete_user(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin")),
 ):
-    if admin.id == user_id:
-        raise HTTPException(status_code=400, detail="You cannot delete your own admin account")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _protect_last_active_super_admin(db, user, deleting=True)
+    if admin.id == user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own admin account")
+    _record_privileged_change(
+        db,
+        admin,
+        "delete_user",
+        "user",
+        resource_id=user.id,
+        target_user_id=user.id,
+        details={"was_admin": user.is_admin, "admin_role": user.admin_role},
+    )
     db.delete(user)
     db.commit()
-    logger.info("Admin security operation", extra={
-        "event": "admin_security_operation",
-        "action": "delete_user",
-        "actor_user_id": admin.id,
-        "target_user_id": user_id,
-    })
     return {"message": "User deleted"}
 
 
 @router.post("/users/{user_id}/reset-password")
 def reset_password(
     user_id: int,
-    payload: dict,
+    payload: AdminPasswordResetRequest,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin")),
 ):
-    new_password = payload.get("new_password")
-    if not new_password or len(new_password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.hashed_password = hash_password(new_password)
+    user.hashed_password = hash_password(payload.new_password)
     AuthService.invalidate_user_sessions(db, user)
+    _record_privileged_change(
+        db,
+        admin,
+        "reset_user_password",
+        "user",
+        resource_id=user.id,
+        target_user_id=user.id,
+    )
     db.commit()
-    logger.info("Admin security operation", extra={
-        "event": "admin_security_operation",
-        "action": "reset_user_password",
-        "actor_user_id": admin.id,
-        "target_user_id": user.id,
-    })
     return {"message": "Password reset"}
 
 
 @router.post("/admins")
 def create_admin(
     payload: RegisterRequest,
-    role: str = Query("moderator", pattern="^(super_admin|moderator|analyst)$"),
+    role: AdminRole = Query("moderator"),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin")),
 ):
@@ -276,14 +393,18 @@ def create_admin(
         admin_role=role,
     )
     db.add(user)
+    db.flush()
+    _record_privileged_change(
+        db,
+        admin,
+        "create_admin",
+        "user",
+        resource_id=user.id,
+        target_user_id=user.id,
+        details={"admin_role": role},
+    )
     db.commit()
     db.refresh(user)
-    logger.info("Admin security operation", extra={
-        "event": "admin_security_operation",
-        "action": "create_admin",
-        "actor_user_id": admin.id,
-        "target_user_id": user.id,
-    })
     return _user_row(db, user)
 
 
@@ -329,26 +450,32 @@ def list_jobs(
 
 @router.post("/jobs")
 def add_featured_job(
-    payload: dict,
+    payload: AdminFeaturedJobCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin", "moderator")),
 ):
-    title = payload.get("title")
-    if not title:
-        raise HTTPException(status_code=400, detail="Job title is required")
     job = Job(
-        external_id=payload.get("external_id") or f"manual-{int(datetime.now(timezone.utc).timestamp())}",
-        title=title,
-        company=payload.get("company") or "",
-        location=payload.get("location") or "",
-        description=payload.get("description") or "",
-        salary_min=payload.get("salary_min"),
-        salary_max=payload.get("salary_max"),
-        url=payload.get("url") or "",
-        category=payload.get("category") or "featured",
+        external_id=payload.external_id or f"manual-{int(datetime.now(timezone.utc).timestamp())}",
+        title=payload.title,
+        company=payload.company,
+        location=payload.location,
+        description=payload.description,
+        salary_min=payload.salary_min,
+        salary_max=payload.salary_max,
+        url=payload.url,
+        category=payload.category,
         is_featured=True,
     )
     db.add(job)
+    db.flush()
+    _record_privileged_change(
+        db,
+        admin,
+        "create_featured_job",
+        "job",
+        resource_id=job.id,
+        details={"title": job.title},
+    )
     db.commit()
     db.refresh(job)
     return {"id": job.id, "message": "Featured job added"}
@@ -359,6 +486,14 @@ def delete_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    _record_privileged_change(
+        db,
+        admin,
+        "delete_job",
+        "job",
+        resource_id=job.id,
+        details={"title": job.title},
+    )
     db.delete(job)
     db.commit()
     return {"message": "Job deleted"}
@@ -367,21 +502,31 @@ def delete_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends
 @router.patch("/jobs/{job_id}")
 def update_job(
     job_id: int,
-    payload: dict,
+    payload: AdminJobUpdate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin_role("super_admin", "moderator")),
 ):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    allowed = {
-        "title", "company", "location", "description", "salary_min", "salary_max",
-        "category", "is_featured", "is_active", "application_email", "application_url",
-        "application_instructions",
-    }
-    for field, value in payload.items():
-        if field in allowed:
-            setattr(job, field, value)
+    changes = payload.model_dump(exclude_unset=True)
+    try:
+        validate_salary_range(
+            changes.get("salary_min", job.salary_min),
+            changes.get("salary_max", job.salary_max),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    for field, value in changes.items():
+        setattr(job, field, value)
+    _record_privileged_change(
+        db,
+        admin,
+        "update_job",
+        "job",
+        resource_id=job.id,
+        details={"fields": sorted(changes)},
+    )
     db.commit()
     db.refresh(job)
     return {"message": "Job updated", "id": job.id}
@@ -413,6 +558,14 @@ def delete_note(note_id: int, db: Session = Depends(get_db), admin: User = Depen
     note = db.query(Note).filter(Note.id == note_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+    _record_privileged_change(
+        db,
+        admin,
+        "delete_note",
+        "note",
+        resource_id=note.id,
+        target_user_id=note.user_id,
+    )
     db.delete(note)
     db.commit()
     return {"message": "Note deleted"}
@@ -438,13 +591,31 @@ def list_profiles(db: Session = Depends(get_db), admin: User = Depends(require_a
 
 
 @router.patch("/moderation/profiles/{profile_id}")
-def moderate_profile(profile_id: int, payload: dict, db: Session = Depends(get_db), admin: User = Depends(require_admin_role("super_admin", "moderator"))):
+def moderate_profile(
+    profile_id: int,
+    payload: ProfileModerationRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_role("super_admin", "moderator")),
+):
     profile = db.query(UserProfile).filter(UserProfile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     for field in ["avatar_url", "headline", "bio"]:
-        if payload.get(f"clear_{field}"):
+        if getattr(payload, f"clear_{field}"):
             setattr(profile, field, None)
+    cleared_fields = [
+        field for field in ["avatar_url", "headline", "bio"]
+        if getattr(payload, f"clear_{field}")
+    ]
+    _record_privileged_change(
+        db,
+        admin,
+        "moderate_profile",
+        "profile",
+        resource_id=profile.id,
+        target_user_id=profile.user_id,
+        details={"cleared_fields": cleared_fields},
+    )
     db.commit()
     return {"message": "Profile moderated"}
 
@@ -489,6 +660,14 @@ def broadcast_email(
         task = send_broadcast_email.delay(recipients, payload.subject.strip(), payload.body.strip())
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Email queue unavailable") from exc
+    _record_privileged_change(
+        db,
+        admin,
+        "queue_broadcast_email",
+        "email",
+        details={"recipient_count": len(recipients), "subject": payload.subject.strip()},
+    )
+    db.commit()
     return {
         "message": "Broadcast queued",
         "subject": payload.subject.strip(),
@@ -515,6 +694,16 @@ def email_user(
         task = send_admin_email.delay(user.email, payload.subject.strip(), payload.body.strip())
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Email queue unavailable") from exc
+    _record_privileged_change(
+        db,
+        admin,
+        "queue_user_email",
+        "email",
+        target_user_id=user.id,
+        resource_id=user.id,
+        details={"subject": payload.subject.strip()},
+    )
+    db.commit()
     return {
         "message": "Email queued",
         "user_id": user.id,
