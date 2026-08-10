@@ -1,20 +1,26 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from schemas.validation import optional_http_url
 
 
 def _validate_password_length(value: str) -> str:
     if len(value) < 8:
         raise ValueError("Password must be at least 8 characters")
+    if len(value) > 128:
+        raise ValueError("Password must not exceed 128 characters")
     return value
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     email: EmailStr
-    full_name: str
+    full_name: str = Field(min_length=1, max_length=150)
     password: str
     account_type: str = "candidate"
-    company_name: str | None = None
-    company_website: str | None = None
-    company_description: str | None = None
+    company_name: str | None = Field(default=None, max_length=200)
+    company_website: str | None = Field(default=None, max_length=2048)
+    company_description: str | None = Field(default=None, max_length=5000)
 
     @field_validator("password")
     @classmethod
@@ -35,10 +41,15 @@ class RegisterRequest(BaseModel):
             raise ValueError("Account type must be candidate or company")
         return v
 
+    @field_validator("company_website")
+    @classmethod
+    def valid_company_website(cls, value: str | None):
+        return optional_http_url(value)
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
 
 class RefreshRequest(BaseModel):
@@ -79,7 +90,7 @@ class UserResponse(BaseModel):
     is_admin: bool = False
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
+    current_password: str = Field(min_length=1, max_length=128)
     new_password: str
 
     @field_validator("new_password")

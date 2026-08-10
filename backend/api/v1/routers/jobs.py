@@ -9,6 +9,7 @@ from models.job import Job
 from models.user import User
 from schemas.job import CompanyJobCreate, CompanyJobUpdate
 from services.notification_service import notify_admins
+from schemas.validation import validate_salary_range
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 logger = logging.getLogger(__name__)
@@ -147,6 +148,13 @@ def update_company_job(
     if not current_user.is_admin and job.posted_by_user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own job posts")
     updates = data.model_dump(exclude_unset=True)
+    try:
+        validate_salary_range(
+            updates.get("salary_min", job.salary_min),
+            updates.get("salary_max", job.salary_max),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     for field, value in updates.items():
         setattr(job, field, value)
     db.commit()

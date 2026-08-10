@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from models.profile import UserProfile
 from models.user import User
 from schemas.profile import ProfileUpdate
+from schemas.validation import validate_salary_range
 
 
 class ProfileService:
@@ -22,6 +24,13 @@ class ProfileService:
     def update(db: Session, user: User, data: ProfileUpdate) -> UserProfile:
         profile = ProfileService.get_or_create(db, user)
         updates = data.model_dump(exclude_unset=True)
+        try:
+            validate_salary_range(
+                updates.get("expected_salary_min", profile.expected_salary_min),
+                updates.get("expected_salary_max", profile.expected_salary_max),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         for field, value in updates.items():
             setattr(profile, field, value)
         db.commit()

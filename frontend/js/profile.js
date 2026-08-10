@@ -130,7 +130,6 @@ function renderDynamicSections() {
 
 function bindProfileEvents() {
   document.getElementById("profileForm")?.addEventListener("submit", saveProfile);
-  document.getElementById("resumeUpload")?.addEventListener("change", handleResumeUpload);
 }
 
 async function loadProfile() {
@@ -261,26 +260,6 @@ function collectSection(config) {
     });
     return entry;
   }).filter(item => Object.values(item).some(Boolean));
-}
-
-function handleResumeUpload(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (file.type !== "application/pdf") {
-    showToast("Please upload a PDF resume.", "error");
-    event.target.value = "";
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    const form = document.getElementById("profileForm");
-    form.elements.resume_file_name.value = file.name;
-    form.elements.resume_url.value = reader.result;
-    updateResumeDownload(reader.result, file.name);
-    showToast("Resume attached. Save profile to keep it.", "success");
-  };
-  reader.readAsDataURL(file);
 }
 
 function updateProfileSummary(profile) {

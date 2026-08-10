@@ -1,10 +1,10 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 
 
 class CreateNoteRequest(BaseModel):
-    saved_job_id: int
-    content: str
+    saved_job_id: int = Field(gt=0)
+    content: str = Field(min_length=1, max_length=5000)
 
     @field_validator("content")
     @classmethod
@@ -15,7 +15,7 @@ class CreateNoteRequest(BaseModel):
 
 
 class UpdateNoteRequest(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=5000)
 
     @field_validator("content")
     @classmethod

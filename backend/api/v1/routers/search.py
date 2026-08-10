@@ -1,5 +1,5 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from typing import Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -74,17 +74,24 @@ def _company_job_result(job: Job) -> dict:
 
 @router.get("/jobs")
 async def search_jobs(
-    keywords: str = Query(..., min_length=1),
-    location: str = "",
-    page: int = 1,
-    results_per_page: int = 20,
-    salary_min: Optional[int] = None,
-    salary_max: Optional[int] = None,
+    keywords: str = Query(..., min_length=1, max_length=100, pattern=r".*\S.*"),
+    location: str = Query(default="", max_length=100),
+    page: int = Query(default=1, ge=1, le=1000),
+    results_per_page: int = Query(default=20, ge=1, le=50),
+    salary_min: Optional[int] = Query(default=None, gt=0, le=1_000_000_000),
+    salary_max: Optional[int] = Query(default=None, gt=0, le=1_000_000_000),
     full_time: Optional[bool] = None,
-    sort_by: str = "relevance",
-    country: str = "gb",
+    sort_by: Literal["relevance", "date", "salary"] = "relevance",
+    country: Literal[
+        "at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb",
+        "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za",
+    ] = "gb",
     db: Session = Depends(get_db),
 ):
+    keywords = keywords.strip()
+    location = location.strip()
+    if salary_min is not None and salary_max is not None and salary_min > salary_max:
+        raise HTTPException(status_code=422, detail="Minimum salary must not exceed maximum salary")
     data = await adzuna_search_jobs(
         keywords=keywords,
         location=location,
@@ -113,6 +120,9 @@ async def search_jobs(
 
 @router.get("/categories")
 async def categories(
-    country: str = "gb",
+    country: Literal[
+        "at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb",
+        "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za",
+    ] = "gb",
 ):
     return await get_job_categories(country)
