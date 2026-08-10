@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from core.application_status import can_transition_application_status
 from core.dependencies import get_current_user
 from models.application import JobApplication
 from models.job import Job
@@ -124,13 +125,21 @@ def update_application_status(
         raise HTTPException(status_code=404, detail="Application not found")
     if not current_user.is_admin and application.job.posted_by_user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only review applications for your jobs")
-    application.status = data.status
+    requested_status = data.status.value
+    if not can_transition_application_status(application.status, data.status):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Application cannot transition from {application.status} to {requested_status}",
+        )
+    if application.status == requested_status:
+        return serialize_application(application)
+    application.status = requested_status
     if application.applicant_user_id:
         create_notification(
             db,
             application.applicant_user_id,
             "Application status updated",
-            f"{application.job.title} is now marked as {data.status}.",
+            f"{application.job.title} is now marked as {requested_status}.",
             "application_status",
         )
     db.commit()

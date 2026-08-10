@@ -85,3 +85,30 @@ def test_postgres_rejects_duplicate_application(postgres_connection):
 
     with pytest.raises(IntegrityError):
         postgres_connection.execute(statement, parameters)
+
+
+def test_postgres_rejects_invalid_application_status(postgres_connection):
+    user_id, job_id = _create_user_and_job(postgres_connection)
+    with pytest.raises(IntegrityError):
+        postgres_connection.execute(
+            text("""
+                INSERT INTO job_applications (
+                    job_id,
+                    applicant_user_id,
+                    applicant_name,
+                    applicant_email,
+                    status
+                ) VALUES (
+                    :job_id,
+                    :user_id,
+                    'Integrity Test Applicant',
+                    :email,
+                    'hired'
+                )
+            """),
+            {
+                "job_id": job_id,
+                "user_id": user_id,
+                "email": f"invalid-status-{uuid4().hex}@example.com",
+            },
+        )

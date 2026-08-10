@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
+from core.application_status import ApplicationStatus
+
 
 class ApplicationCreate(BaseModel):
     external_id: str
@@ -21,7 +23,7 @@ class ApplicationCreate(BaseModel):
 
 
 class ApplicationStatusUpdate(BaseModel):
-    status: str
+    status: ApplicationStatus
 
 
 class ApplicationResponse(BaseModel):
@@ -42,5 +44,5 @@ class ApplicationResponse(BaseModel):
     cover_letter: Optional[str] = None
     extra_details: Optional[str] = None
     use_profile: bool
-    status: str
+    status: ApplicationStatus
     created_at: datetime

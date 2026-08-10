@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -12,6 +12,11 @@ class JobApplication(Base):
             "applicant_user_id",
             "job_id",
             name="uq_job_applications_applicant_job",
+        ),
+        CheckConstraint(
+            "status IN ('submitted', 'reviewing', 'shortlisted', 'interview', "
+            "'offered', 'rejected', 'withdrawn')",
+            name="ck_job_applications_status_valid",
         ),
     )
 

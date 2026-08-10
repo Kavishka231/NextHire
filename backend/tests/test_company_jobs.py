@@ -132,6 +132,37 @@ def test_candidate_applies_and_company_reviews_application(client):
     )
     assert submitted.status_code == 200
     assert submitted.json()["job_title"] == "Python Developer"
+    application_id = submitted.json()["id"]
+
+    invalid_status = client.patch(
+        f"/api/v1/applications/{application_id}/status",
+        json={"status": "hired"},
+        headers=company_auth,
+    )
+    assert invalid_status.status_code == 422
+
+    repeated = client.patch(
+        f"/api/v1/applications/{application_id}/status",
+        json={"status": "submitted"},
+        headers=company_auth,
+    )
+    assert repeated.status_code == 200
+
+    for status in ["reviewing", "shortlisted", "interview", "offered", "withdrawn"]:
+        transition = client.patch(
+            f"/api/v1/applications/{application_id}/status",
+            json={"status": status},
+            headers=company_auth,
+        )
+        assert transition.status_code == 200
+        assert transition.json()["status"] == status
+
+    terminal_transition = client.patch(
+        f"/api/v1/applications/{application_id}/status",
+        json={"status": "submitted"},
+        headers=company_auth,
+    )
+    assert terminal_transition.status_code == 409
 
     duplicate = client.post(
         "/api/v1/applications",
@@ -153,3 +184,47 @@ def test_candidate_applies_and_company_reviews_application(client):
     applications = client.get("/api/v1/applications/company", headers=company_auth)
     assert applications.status_code == 200
     assert applications.json()[0]["applicant_email"] == "candidate@example.com"
+
+
+def test_rejected_application_cannot_return_to_submitted(client):
+    company = register_company(client)
+    pending = client.get("/api/v1/admin/companies/pending", headers=admin_headers(client)).json()
+    company_id = next(user["id"] for user in pending if user["email"] == company["email"])
+    client.patch(
+        f"/api/v1/admin/companies/{company_id}/approval",
+        json={"approved": True},
+        headers=admin_headers(client),
+    )
+    company_auth = company_headers(client, company)
+    job = client.post(
+        "/api/v1/jobs/company",
+        json={"title": "Data Engineer", "description": "Build data systems"},
+        headers=company_auth,
+    ).json()
+    candidate = {
+        "email": "rejected-candidate@example.com",
+        "full_name": "Rejected Candidate",
+        "password": "password123",
+    }
+    client.post("/api/v1/auth/register", json=candidate)
+    candidate_auth = company_headers(client, candidate)
+    application = client.post(
+        "/api/v1/applications",
+        json={"external_id": job["external_id"]},
+        headers=candidate_auth,
+    ).json()
+
+    rejected = client.patch(
+        f"/api/v1/applications/{application['id']}/status",
+        json={"status": "rejected"},
+        headers=company_auth,
+    )
+    reopened = client.patch(
+        f"/api/v1/applications/{application['id']}/status",
+        json={"status": "submitted"},
+        headers=company_auth,
+    )
+
+    assert rejected.status_code == 200
+    assert reopened.status_code == 409
+    assert "cannot transition" in reopened.json()["detail"]

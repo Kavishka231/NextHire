@@ -1,5 +1,18 @@
 let employerJobs = [];
 let employerApplications = [];
+const applicationStatusTransitions = {
+  submitted: ["reviewing", "rejected", "withdrawn"],
+  reviewing: ["shortlisted", "interview", "rejected", "withdrawn"],
+  shortlisted: ["interview", "rejected", "withdrawn"],
+  interview: ["offered", "rejected", "withdrawn"],
+  offered: ["withdrawn"],
+  rejected: [],
+  withdrawn: [],
+};
+
+function applicationStatusOptions(currentStatus) {
+  return [currentStatus, ...(applicationStatusTransitions[currentStatus] || [])];
+}
 
 async function initEmployer() {
   if (!(await requireAuth())) return;
@@ -94,7 +107,7 @@ function renderEmployerApplications() {
         ${application.portfolio_url ? `<a href="${escAttr(application.portfolio_url)}" target="_blank" rel="noreferrer">Portfolio</a>` : ""}
       </div>
       <select class="status-select" onchange="updateApplicationStatus(${application.id}, this.value)">
-        ${["submitted", "reviewing", "shortlisted", "rejected", "hired"].map(status => `<option value="${status}" ${application.status === status ? "selected" : ""}>${status}</option>`).join("")}
+        ${applicationStatusOptions(application.status).map(status => `<option value="${status}" ${application.status === status ? "selected" : ""}>${status}</option>`).join("")}
       </select>
     </article>
   `).join("") : `<div class="empty-mini">No applications yet. New applicants will appear here and notify your company account.</div>`;
@@ -143,10 +156,15 @@ async function deleteCompanyJob(id) {
 }
 
 async function updateApplicationStatus(id, status) {
-  await api.patch(`/applications/${id}/status`, { status });
-  showToast("Application status updated", "success");
-  employerApplications = await api.get("/applications/company");
-  renderEmployerApplications();
+  try {
+    await api.patch(`/applications/${id}/status`, { status });
+    showToast("Application status updated", "success");
+    employerApplications = await api.get("/applications/company");
+    renderEmployerApplications();
+  } catch (error) {
+    showToast(error.message || "Unable to update application status", "error");
+    renderEmployerApplications();
+  }
 }
 
 function clearJobForm() {
