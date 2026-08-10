@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from core.dependencies import get_db, get_current_user
 from schemas.saved_job import SavedJobCreate, SavedJobResponse, SavedJobStatusUpdate
+from schemas.pagination import PaginatedResponse, PaginationParams, pagination_params
 from services.saved_job_service import SavedJobService
 
 router = APIRouter(
@@ -26,15 +27,17 @@ def save_job(
     )
 
 
-@router.get("", response_model=list[SavedJobResponse])
-@router.get("/", response_model=list[SavedJobResponse])
+@router.get("", response_model=PaginatedResponse[SavedJobResponse])
+@router.get("/", response_model=PaginatedResponse[SavedJobResponse])
 def get_saved_jobs(
+    pagination: PaginationParams = Depends(pagination_params),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     return SavedJobService.get_saved_jobs(
         db,
-        current_user.id
+        current_user.id,
+        pagination,
     )
 
 

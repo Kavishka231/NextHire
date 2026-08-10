@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from models.saved_job import SavedJob
 from models.job import Job
+from schemas.pagination import PaginationParams, paginated_response
 
 
 logger = logging.getLogger(__name__)
@@ -52,15 +53,16 @@ class SavedJobService:
         return saved_job
 
     @staticmethod
-    def get_saved_jobs(db, user_id: int):
-
+    def get_saved_jobs(db, user_id: int, pagination: PaginationParams):
+        query = db.query(SavedJob).filter(SavedJob.user_id == user_id)
+        total = query.count()
         saved_jobs = (
-            db.query(SavedJob)
-            .filter(SavedJob.user_id == user_id)
+            query.order_by(SavedJob.created_at.desc(), SavedJob.id.desc())
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
             .all()
         )
-
-        return saved_jobs
+        return paginated_response(saved_jobs, total, pagination)
 
     @staticmethod
     def update_status(db, user_id: int, saved_job_id: int, status_value: str):

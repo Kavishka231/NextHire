@@ -10,14 +10,26 @@ from models.user import User
 from schemas.job import CompanyJobCreate, CompanyJobUpdate
 from services.notification_service import notify_admins
 from schemas.validation import validate_salary_range
+from schemas.pagination import PaginationParams, paginated_response, pagination_params
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 logger = logging.getLogger(__name__)
 
 
 @router.get("")
-def get_jobs(db: Session = Depends(get_db)):
-    return db.query(Job).filter(Job.is_active.is_(True)).all()
+def get_jobs(
+    pagination: PaginationParams = Depends(pagination_params),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Job).filter(Job.is_active.is_(True))
+    total = query.count()
+    jobs = (
+        query.order_by(Job.created_at.desc(), Job.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return paginated_response([serialize_job(job) for job in jobs], total, pagination)
 
 
 def serialize_job(job: Job):
@@ -72,12 +84,20 @@ def require_approved_company(user: User):
 
 @router.get("/company/mine")
 def my_company_jobs(
+    pagination: PaginationParams = Depends(pagination_params),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     require_approved_company(current_user)
-    jobs = db.query(Job).filter(Job.posted_by_user_id == current_user.id).order_by(Job.created_at.desc()).all()
-    return [serialize_job(job) for job in jobs]
+    query = db.query(Job).filter(Job.posted_by_user_id == current_user.id)
+    total = query.count()
+    jobs = (
+        query.order_by(Job.created_at.desc(), Job.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return paginated_response([serialize_job(job) for job in jobs], total, pagination)
 
 
 @router.post("/company")

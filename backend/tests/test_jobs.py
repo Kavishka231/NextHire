@@ -25,6 +25,19 @@ def test_search_pagination(client, auth_headers):
     assert res.json()["results_per_page"] == 5
 
 
+def test_public_jobs_use_consistent_pagination(client):
+    client.get(SEARCH_URL, params={"keywords": "team", "results_per_page": 10})
+
+    res = client.get("/api/v1/jobs", params={"page": 2, "page_size": 3})
+
+    assert res.status_code == 200
+    assert set(res.json()) == {"items", "page", "page_size", "total"}
+    assert res.json()["page"] == 2
+    assert res.json()["page_size"] == 3
+    assert res.json()["total"] == 10
+    assert len(res.json()["items"]) == 3
+
+
 def test_search_with_location(client, auth_headers):
     res = client.get(SEARCH_URL, params={"keywords": "python", "location": "London"}, headers=auth_headers)
     assert res.status_code == 200
@@ -64,3 +77,28 @@ def test_saving_same_job_twice_returns_conflict(client, auth_headers):
     assert first.status_code == 200
     assert duplicate.status_code == 409
     assert duplicate.json()["detail"] == "Job already saved"
+
+
+def test_saved_jobs_are_paginated(client, auth_headers):
+    search = client.get(
+        SEARCH_URL,
+        params={"keywords": "team", "results_per_page": 5},
+    ).json()
+    for job in search["jobs"]:
+        response = client.post(
+            "/api/v1/saved-jobs",
+            json={"external_id": job["external_id"]},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+    res = client.get(
+        "/api/v1/saved-jobs?page=2&page_size=2",
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    assert res.json()["page"] == 2
+    assert res.json()["page_size"] == 2
+    assert res.json()["total"] == 5
+    assert len(res.json()["items"]) == 2

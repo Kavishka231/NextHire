@@ -23,7 +23,27 @@ def test_list_notes(client, auth_headers, saved_job_id):
     client.post(NOTES_URL, json={"saved_job_id": saved_job_id, "content": "Note 2"}, headers=auth_headers)
     res = client.get(f"{NOTES_URL}/job/{saved_job_id}", headers=auth_headers)
     assert res.status_code == 200
-    assert len(res.json()) == 2
+    assert len(res.json()["items"]) == 2
+    assert res.json()["total"] == 2
+
+
+def test_notes_are_paginated(client, auth_headers, saved_job_id):
+    for index in range(3):
+        client.post(
+            NOTES_URL,
+            json={"saved_job_id": saved_job_id, "content": f"Page note {index}"},
+            headers=auth_headers,
+        )
+
+    res = client.get(
+        f"{NOTES_URL}/job/{saved_job_id}?page=2&page_size=2",
+        headers=auth_headers,
+    )
+    assert res.status_code == 200
+    assert res.json()["page"] == 2
+    assert res.json()["page_size"] == 2
+    assert res.json()["total"] == 3
+    assert len(res.json()["items"]) == 1
 
 
 def test_update_note(client, auth_headers, saved_job_id):
@@ -38,7 +58,8 @@ def test_delete_note(client, auth_headers, saved_job_id):
     res  = client.delete(f"{NOTES_URL}/{note['id']}", headers=auth_headers)
     assert res.status_code == 204
     notes = client.get(f"{NOTES_URL}/job/{saved_job_id}", headers=auth_headers).json()
-    assert len(notes) == 0
+    assert notes["items"] == []
+    assert notes["total"] == 0
 
 
 def test_note_requires_auth(client, saved_job_id):

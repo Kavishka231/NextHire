@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
+from sqlalchemy import event
 from app.config import settings
 from models.user import User
-from tests.conftest import TestingSessionLocal
+from tests.conftest import TestingSessionLocal, engine
 
 ADMIN_EMAIL = "admin@nexthire.com"
 ADMIN_PASSWORD = "Admin@Test12345"
@@ -40,7 +41,48 @@ def test_seeded_admin_can_read_summary(client):
 def test_admin_can_list_users(client):
     res = client.get("/api/v1/admin/users", headers=admin_headers(client))
     assert res.status_code == 200
-    assert any(user["email"] == ADMIN_EMAIL for user in res.json())
+    body = res.json()
+    assert set(body) == {"items", "page", "page_size", "total"}
+    assert any(user["email"] == ADMIN_EMAIL for user in body["items"])
+
+
+def test_admin_user_pagination_has_fixed_query_count(client):
+    for index in range(5):
+        client.post("/api/v1/auth/register", json={
+            "email": f"page-user-{index}@example.com",
+            "full_name": f"Page User {index}",
+            "password": "password123",
+        })
+
+    headers = admin_headers(client)
+    statements = []
+
+    def record_query(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", record_query)
+    try:
+        response = client.get(
+            "/api/v1/admin/users?page=2&page_size=2",
+            headers=headers,
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", record_query)
+
+    assert response.status_code == 200
+    assert response.json()["page"] == 2
+    assert response.json()["page_size"] == 2
+    assert response.json()["total"] == 6
+    assert len(response.json()["items"]) == 2
+    # Authentication, total count, and one aggregate collection query.
+    assert len(statements) == 3
+
+
+def test_collection_pagination_rejects_invalid_bounds(client):
+    headers = admin_headers(client)
+    assert client.get("/api/v1/admin/users?page=0", headers=headers).status_code == 422
+    assert client.get("/api/v1/admin/users?page_size=101", headers=headers).status_code == 422
 
 
 def test_disabling_user_revokes_refresh_sessions(client):
@@ -126,7 +168,7 @@ def test_admin_can_add_featured_job(client):
     )
     assert res.status_code == 200
     jobs = client.get("/api/v1/admin/jobs", headers=admin_headers(client))
-    assert any(job["title"] == "Featured Frontend Engineer" for job in jobs.json())
+    assert any(job["title"] == "Featured Frontend Engineer" for job in jobs.json()["items"])
 
 
 def test_super_admin_can_queue_broadcast_to_active_users(client):

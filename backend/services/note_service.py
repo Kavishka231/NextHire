@@ -5,6 +5,7 @@ from models.note import Note
 from models.saved_job import SavedJob
 from models.user import User
 from schemas.note import CreateNoteRequest, UpdateNoteRequest
+from schemas.pagination import PaginationParams, paginated_response
 
 
 def _verify_saved_job(db: Session, user: User, saved_job_id: int) -> SavedJob:
@@ -41,14 +42,25 @@ def create_note(db: Session, user: User, data: CreateNoteRequest) -> Note:
     return note
 
 
-def get_notes_for_job(db: Session, user: User, saved_job_id: int) -> list[Note]:
+def get_notes_for_job(
+    db: Session,
+    user: User,
+    saved_job_id: int,
+    pagination: PaginationParams,
+) -> dict:
     _verify_saved_job(db, user, saved_job_id)
-    return (
-        db.query(Note)
-        .filter(Note.saved_job_id == saved_job_id, Note.user_id == user.id)
-        .order_by(Note.created_at.desc())
+    query = db.query(Note).filter(
+        Note.saved_job_id == saved_job_id,
+        Note.user_id == user.id,
+    )
+    total = query.count()
+    notes = (
+        query.order_by(Note.created_at.desc(), Note.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
         .all()
     )
+    return paginated_response(notes, total, pagination)
 
 
 def update_note(db: Session, user: User, note_id: int, data: UpdateNoteRequest) -> Note:

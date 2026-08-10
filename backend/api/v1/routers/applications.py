@@ -11,6 +11,7 @@ from models.application import JobApplication
 from models.job import Job
 from models.user import User
 from schemas.application import ApplicationCreate, ApplicationResponse, ApplicationStatusUpdate
+from schemas.pagination import PaginatedResponse, PaginationParams, paginated_response, pagination_params
 from services.notification_service import create_notification
 from services.profile_service import ProfileService
 
@@ -99,8 +100,9 @@ def submit_application(
     return serialize_application(application)
 
 
-@router.get("/company", response_model=list[ApplicationResponse])
+@router.get("/company", response_model=PaginatedResponse[ApplicationResponse])
 def company_applications(
+    pagination: PaginationParams = Depends(pagination_params),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -109,8 +111,18 @@ def company_applications(
     query = db.query(JobApplication).join(Job)
     if not current_user.is_admin:
         query = query.filter(Job.posted_by_user_id == current_user.id)
-    applications = query.order_by(JobApplication.created_at.desc()).all()
-    return [serialize_application(application) for application in applications]
+    total = query.count()
+    applications = (
+        query.order_by(JobApplication.created_at.desc(), JobApplication.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return paginated_response(
+        [serialize_application(application) for application in applications],
+        total,
+        pagination,
+    )
 
 
 @router.patch("/{application_id}/status", response_model=ApplicationResponse)

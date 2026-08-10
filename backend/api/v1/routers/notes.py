@@ -5,6 +5,7 @@ from app.database import get_db
 from core.dependencies import get_current_user
 from models.user import User
 from schemas.note import CreateNoteRequest, UpdateNoteRequest, NoteResponse
+from schemas.pagination import PaginatedResponse, PaginationParams, pagination_params
 from services.note_service import (
     create_note, get_notes_for_job, update_note, delete_note,
 )
@@ -22,14 +23,15 @@ def add_note(
     return create_note(db, current_user, data)
 
 
-@router.get("/job/{saved_job_id}", response_model=list[NoteResponse])
+@router.get("/job/{saved_job_id}", response_model=PaginatedResponse[NoteResponse])
 def list_notes(
     saved_job_id: int,
+    pagination: PaginationParams = Depends(pagination_params),
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
     """List all notes for a specific saved job."""
-    return get_notes_for_job(db, current_user, saved_job_id)
+    return get_notes_for_job(db, current_user, saved_job_id, pagination)
 
 
 @router.put("/{note_id}", response_model=NoteResponse)

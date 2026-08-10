@@ -19,6 +19,7 @@ from models.saved_job import SavedJob
 from models.search_log import SearchLog
 from models.user import User
 from schemas.auth import RegisterRequest
+from schemas.pagination import PaginationParams, paginated_response, pagination_params
 from services.auth_service import AuthService
 from core.rate_limit import rate_limit
 from services.notification_service import create_notification
@@ -33,9 +34,7 @@ class AdminEmailRequest(BaseModel):
     body: str = Field(min_length=1, max_length=20_000)
 
 
-def _user_row(db: Session, user: User) -> dict:
-    saved_count = db.query(SavedJob).filter(SavedJob.user_id == user.id).count()
-    applied_count = db.query(SavedJob).filter(SavedJob.user_id == user.id, SavedJob.status == "applied").count()
+def _user_payload(user: User, saved_count: int, applied_count: int) -> dict:
     return {
         "id": user.id,
         "full_name": user.full_name,
@@ -56,6 +55,15 @@ def _user_row(db: Session, user: User) -> dict:
     }
 
 
+def _user_row(db: Session, user: User) -> dict:
+    saved_count = db.query(SavedJob).filter(SavedJob.user_id == user.id).count()
+    applied_count = db.query(SavedJob).filter(
+        SavedJob.user_id == user.id,
+        SavedJob.status == "applied",
+    ).count()
+    return _user_payload(user, saved_count, applied_count)
+
+
 @router.get("/summary")
 def summary(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
@@ -74,20 +82,40 @@ def summary(db: Session = Depends(get_db), admin: User = Depends(require_admin))
 
 @router.get("/users")
 def list_users(
-    q: str = "",
-    status: str = "all",
+    q: str = Query(default="", max_length=100),
+    status: str = Query(default="all", pattern="^(all|active|inactive)$"),
+    pagination: PaginationParams = Depends(pagination_params),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    query = db.query(User)
+    conditions = []
     if q:
         like = f"%{q}%"
-        query = query.filter((User.email.ilike(like)) | (User.full_name.ilike(like)))
+        conditions.append((User.email.ilike(like)) | (User.full_name.ilike(like)))
     if status == "active":
-        query = query.filter(User.is_active.is_(True))
+        conditions.append(User.is_active.is_(True))
     elif status == "inactive":
-        query = query.filter(User.is_active.is_(False))
-    return [_user_row(db, user) for user in query.order_by(User.created_at.desc()).all()]
+        conditions.append(User.is_active.is_(False))
+    total = db.query(func.count(User.id)).filter(*conditions).scalar() or 0
+    rows = (
+        db.query(
+            User,
+            func.count(SavedJob.id).label("saved_count"),
+            func.sum(case((SavedJob.status == "applied", 1), else_=0)).label("applied_count"),
+        )
+        .outerjoin(SavedJob, SavedJob.user_id == User.id)
+        .filter(*conditions)
+        .group_by(User.id)
+        .order_by(User.created_at.desc(), User.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+        .all()
+    )
+    items = [
+        _user_payload(user, saved_count or 0, applied_count or 0)
+        for user, saved_count, applied_count in rows
+    ]
+    return paginated_response(items, total, pagination)
 
 
 @router.get("/companies/pending")
@@ -260,7 +288,12 @@ def create_admin(
 
 
 @router.get("/jobs")
-def list_jobs(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def list_jobs(
+    pagination: PaginationParams = Depends(pagination_params),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    total = db.query(func.count(Job.id)).scalar() or 0
     rows = (
         db.query(
             Job,
@@ -269,10 +302,12 @@ def list_jobs(db: Session = Depends(get_db), admin: User = Depends(require_admin
         )
         .outerjoin(SavedJob, SavedJob.job_id == Job.id)
         .group_by(Job.id)
-        .order_by(Job.created_at.desc())
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
         .all()
     )
-    return [
+    items = [
         {
             "id": job.id,
             "external_id": job.external_id,
@@ -289,6 +324,7 @@ def list_jobs(db: Session = Depends(get_db), admin: User = Depends(require_admin
         }
         for job, saved_count, application_count in rows
     ]
+    return paginated_response(items, total, pagination)
 
 
 @router.post("/jobs")
@@ -352,12 +388,24 @@ def update_job(
 
 
 @router.get("/moderation/notes")
-def list_notes(db: Session = Depends(get_db), admin: User = Depends(require_admin_role("super_admin", "moderator"))):
-    notes = db.query(Note, User).join(User, Note.user_id == User.id).order_by(Note.created_at.desc()).limit(200).all()
-    return [
+def list_notes(
+    pagination: PaginationParams = Depends(pagination_params),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_role("super_admin", "moderator")),
+):
+    query = db.query(Note, User).join(User, Note.user_id == User.id)
+    total = db.query(func.count(Note.id)).scalar() or 0
+    notes = (
+        query.order_by(Note.created_at.desc(), Note.id.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+        .all()
+    )
+    items = [
         {"id": note.id, "content": note.content, "created_at": note.created_at, "user_email": user.email}
         for note, user in notes
     ]
+    return paginated_response(items, total, pagination)
 
 
 @router.delete("/moderation/notes/{note_id}")

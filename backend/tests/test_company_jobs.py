@@ -183,7 +183,7 @@ def test_candidate_applies_and_company_reviews_application(client):
 
     applications = client.get("/api/v1/applications/company", headers=company_auth)
     assert applications.status_code == 200
-    assert applications.json()[0]["applicant_email"] == "candidate@example.com"
+    assert applications.json()["items"][0]["applicant_email"] == "candidate@example.com"
 
 
 def test_rejected_application_cannot_return_to_submitted(client):
