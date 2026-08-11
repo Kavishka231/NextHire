@@ -7,7 +7,7 @@ customer data without an approved maintenance window.
 
 ## Prerequisites
 
-- Migration `009` is current.
+- Migration `013` is current.
 - `/health` and `/ready` are healthy through the public HTTPS proxy.
 - A dedicated super-administrator account exists.
 - A controlled email domain or catch-all mailbox accepts generated test

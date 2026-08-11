@@ -142,6 +142,11 @@ do not treat `/health` alone as deployment readiness.
 
 ### Database backup and restore
 
+The executable backup, guarded restore, verification commands, retention
+policy, incident flow, and quarterly recovery exercise are documented in
+[`docs/DATABASE_RECOVERY.md`](docs/DATABASE_RECOVERY.md). Use that runbook for
+every pre-migration backup and database-loss incident.
+
 Use managed PostgreSQL with encryption, private networking, automated daily
 backups, point-in-time recovery, and retention that matches business needs.
 Before every migration, create a provider snapshot and record its identifier in

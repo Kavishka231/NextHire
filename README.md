@@ -65,6 +65,8 @@ NextHire/
     *.html                   Static pages
     Dockerfile               Optional frontend image
     nginx.conf               Nginx config with API proxy
+  scripts/                   Deployment smoke and database recovery tools
+  docs/                      Production operations runbooks
   docker-compose.yml         Local multi-service environment
   README.md                  Project documentation
 ```
@@ -396,6 +398,19 @@ The tests cover:
 Changes should go through a reviewed pull request. CI runs backend tests,
 PostgreSQL migration and integrity checks, frontend JavaScript validation,
 dependency and secret audits, Compose validation, and container image builds.
+
+## Backup and disaster recovery
+
+NextHire includes a checksummed PostgreSQL backup tool, a guarded restore that
+refuses non-empty targets, migration verification, and a complete incident
+runbook. Follow [`docs/DATABASE_RECOVERY.md`](docs/DATABASE_RECOVERY.md) before
+migrations and during quarterly restore exercises.
+
+```bash
+python scripts/database_recovery.py backup
+python scripts/database_recovery.py restore backups/<backup>.dump --confirm-database nexthire
+python scripts/database_recovery.py verify --expected-head 013
+```
 
 ## Known Notes
 
