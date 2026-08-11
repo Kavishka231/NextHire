@@ -102,7 +102,9 @@ From the project root:
 
 ```bash
 cd NextHire
-docker compose up -d --build
+docker compose build
+docker compose --profile operations run --rm migrate
+docker compose up -d
 ```
 
 After startup:
@@ -112,11 +114,7 @@ After startup:
 - Swagger and ReDoc are available on the private backend network.
 - Liveness/readiness: `/health` and `/ready` on the private backend network.
 
-Run migrations as the controlled operations service:
-
-```bash
-docker compose --profile operations run --rm migrate
-```
+Migrations are a controlled release step and run before the application starts.
 
 Stop services:
 
@@ -211,6 +209,7 @@ Health:
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/health` | Check API health |
+| `GET` | `/ready` | Check PostgreSQL and Redis readiness |
 
 Authentication:
 
@@ -222,6 +221,7 @@ Authentication:
 | `POST` | `/auth/refresh` | Refresh an access token |
 | `POST` | `/auth/logout` | Revoke/logout refresh token |
 | `POST` | `/auth/forgot-password` | Start password reset flow |
+| `POST` | `/auth/reset-password` | Complete a password reset |
 | `PUT` | `/auth/change-password` | Change authenticated user's password |
 
 Job search:
@@ -243,6 +243,18 @@ Jobs:
 | --- | --- | --- |
 | `GET` | `/jobs` | List cached jobs |
 | `GET` | `/jobs/{job_id}` | Get one cached job |
+
+Employer and application management:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET`, `PUT` | `/company/me` | View or update the employer company profile |
+| `GET` | `/jobs/company/mine` | List jobs owned by the employer |
+| `POST` | `/jobs/company` | Publish an employer job |
+| `PUT`, `DELETE` | `/jobs/company/{job_id}` | Update or remove an owned job |
+| `POST` | `/applications` | Apply to a company job |
+| `GET` | `/applications/company` | List applications received by an employer |
+| `PATCH` | `/applications/{application_id}/status` | Update an application status |
 
 Saved jobs:
 
@@ -268,6 +280,21 @@ Stats:
 | --- | --- | --- |
 | `GET` | `/stats` | Return dashboard statistics for the current user |
 
+Profiles and notifications:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET`, `PUT` | `/profile/me` | View or update the candidate profile |
+| `GET` | `/notifications` | List notifications |
+| `GET` | `/notifications/unread-count` | Return the unread count |
+| `PATCH` | `/notifications/read-all` | Mark all notifications as read |
+| `PATCH` | `/notifications/{notification_id}/read` | Mark one notification as read |
+
+Administration routes under `/admin` provide user and company moderation,
+job and profile moderation, analytics, audited role management, operational
+health information, and controlled email delivery. They require an appropriate
+administrator role.
+
 Most app routes require an `Authorization: Bearer <access_token>` header.
 
 ## Frontend Pages
@@ -280,9 +307,13 @@ Important frontend pages:
 | `login.html` | Login form |
 | `register.html` | Registration form |
 | `forgot-password.html` | Password reset request |
+| `reset-password.html` | Password reset completion |
 | `dashboard.html` | User dashboard and analytics |
 | `search.html` | Job search page |
 | `jobs.html` | Saved jobs board, status tracking, and notes UI |
+| `profile.html` | Candidate profile management |
+| `employer.html` | Employer profile, jobs, and applications |
+| `admin.html` | Role-controlled administration console |
 
 Important frontend scripts:
 
@@ -302,13 +333,11 @@ Celery is configured in:
 backend/tasks/celery_app.py
 ```
 
-The reminder task is in:
+Scheduled and queued tasks include:
 
-```text
-backend/tasks/reminder_task.py
-```
-
-It is intended to email users about applications that have stayed in the `applied` status for more than 7 days.
+- reminder emails for applications that remain in `applied` status;
+- queued password-reset, administrator, and broadcast email delivery; and
+- daily cleanup of expired or revoked authentication tokens.
 
 Run the worker with Docker Compose:
 
@@ -334,6 +363,20 @@ cd NextHire/backend
 python -m pytest
 ```
 
+The Playwright suite serves the real frontend locally and intercepts API calls
+with deterministic browser fixtures. Install its pinned dependency and run the
+Chromium workflows from the project root:
+
+```bash
+npm ci
+npm run test:e2e
+```
+
+The browser suite covers candidate registration and login, job search and
+saving, pipeline status changes, notes and dashboard statistics, employer
+profiles/jobs/applications, administrator moderation and security actions, and
+unauthenticated protected-page redirects.
+
 The tests cover:
 
 - Authentication
@@ -346,6 +389,7 @@ The tests cover:
 - Employer jobs and candidate applications
 - Administration, audit logging, rate limits, and production configuration
 - PostgreSQL integrity constraints
+- End-to-end candidate, employer, administrator, and access-control workflows
 
 ## Development Workflow
 
@@ -362,8 +406,10 @@ dependency and secret audits, Compose validation, and container image builds.
 ## Useful Commands
 
 ```bash
-# Start everything
-docker compose up --build
+# Build, migrate, and start everything
+docker compose build
+docker compose --profile operations run --rm migrate
+docker compose up -d
 
 # Start only database and Redis
 docker compose up db redis
@@ -379,6 +425,11 @@ python -m alembic upgrade head
 # Run tests
 cd backend
 python -m pytest
+
+# Run browser workflows from the project root
+cd ..
+npm ci
+npm run test:e2e
 
 # Run Celery worker locally
 cd backend

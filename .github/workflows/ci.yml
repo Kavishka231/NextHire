@@ -90,6 +90,10 @@ jobs:
       - name: Check frontend JavaScript
         shell: bash
         run: find frontend/js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Install browser test dependencies
+        run: npm ci
+      - name: Run Playwright end-to-end workflows
+        run: npm run test:e2e
       - name: Validate Compose
         env:
           POSTGRES_PASSWORD: ci-only-password

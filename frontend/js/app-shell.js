@@ -1,7 +1,7 @@
 (function () {
   async function initAppShell() {
     if (typeof api === "undefined" || typeof Auth === "undefined") return;
-    if (!Auth.isLoggedIn()) {
+    if (!Auth.isLoggedIn() && !(await refreshAccessToken())) {
       applyRoleNavigation(null);
       return;
     }

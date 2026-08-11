@@ -20,6 +20,7 @@ async function initJobs() {
 function bindBoardControls() {
   document.getElementById("notesCloseBtn")?.addEventListener("click", closeNotes);
   document.getElementById("notesOverlay")?.addEventListener("click", closeNotes);
+  document.getElementById("noteSubmitBtn")?.addEventListener("click", addNote);
 }
 
 async function loadJobsUser() {
@@ -87,13 +88,39 @@ function updateTabCounts(jobs, total) {
   });
 }
 
-function openNotes(savedJobId, title) {
+async function openNotes(savedJobId, title) {
+  document.getElementById("notesPanel").dataset.savedJobId = savedJobId;
   setText("notesPanelTitle", title);
   setText("notesPanelSubtitle", `Saved job #${savedJobId}`);
   const panel = document.getElementById("notesPanel");
   const overlay = document.getElementById("notesOverlay");
   panel?.classList.add("open");
   overlay?.classList.add("open");
+  await loadNotes(savedJobId);
+}
+
+async function loadNotes(savedJobId) {
+  const root = document.getElementById("notesList");
+  if (!root) return;
+  try {
+    const data = await api.get(`/notes/job/${savedJobId}?page=1&page_size=25`);
+    root.innerHTML = data.items.length
+      ? data.items.map(note => `<div class="note-item"><p>${escHtml(note.content)}</p></div>`).join("")
+      : `<div class="chart-empty">No notes yet.</div>`;
+  } catch (err) {
+    root.innerHTML = `<div class="chart-empty">${escHtml(err.detail || "Could not load notes")}</div>`;
+  }
+}
+
+async function addNote() {
+  const panel = document.getElementById("notesPanel");
+  const input = document.getElementById("noteInput");
+  const savedJobId = panel?.dataset.savedJobId;
+  const content = input?.value.trim();
+  if (!savedJobId || !content) return;
+  await api.post("/notes", { saved_job_id: Number(savedJobId), content });
+  input.value = "";
+  await loadNotes(savedJobId);
 }
 
 function closeNotes() {
