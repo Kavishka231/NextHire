@@ -2,14 +2,23 @@
 
 ## Required configuration
 
-Copy `.env.example` to `.env`, replace every `replace-*` value, and set:
+Copy `.env.example` to `.env` on the deployment host and replace every
+`replace-*` value. The production template includes:
 
 - `ENVIRONMENT=production`
-- a random `SECRET_KEY` containing at least 32 characters
-- a strong `POSTGRES_PASSWORD`
-- the public HTTPS `PUBLIC_APP_URL`
-- the exact comma-separated HTTPS origins in `CORS_ORIGINS`
-- SMTP and Adzuna credentials when those integrations are required
+- a random `SECRET_KEY` containing at least 32 characters;
+- `REFRESH_COOKIE_SECURE=true` and the configured `REFRESH_COOKIE_NAME`;
+- a strong `POSTGRES_PASSWORD` and matching PostgreSQL `DATABASE_URL`;
+- the private or provider `REDIS_URL` used by the API and Celery;
+- the public HTTPS `PUBLIC_APP_URL` and exact comma-separated HTTPS origins in
+  `CORS_ORIGINS`;
+- SMTP sender and server settings, with `EMAIL_ENABLED=false` until verified;
+- production `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` values;
+- optional `SENTRY_DSN`, plus `APP_RELEASE` set to the deployed commit; and
+- one-time administrator bootstrap values when `SEED_ADMIN=true`.
+
+Keep `.env` outside source control and restrict it to the deployment service
+account. The committed `.env.example` contains placeholders, never credentials.
 
 Set `EMAIL_ENABLED=true` only after SMTP credentials, sender identity, and
 delivery monitoring are configured. When it is enabled in production, startup
@@ -53,13 +62,16 @@ docker compose build --pull
 docker compose --profile operations run --rm migrate
 docker compose up -d
 docker compose ps
-curl --fail http://localhost:5500/
-curl --fail http://localhost:5500/api/v1/jobs
+docker compose --profile operations run --rm migrate alembic current
+curl --fail https://your-domain.example/
+curl --fail https://your-domain.example/health
+curl --fail https://your-domain.example/ready
 ```
 
-After deployment, confirm Alembic reports migration `009` as the current head.
-Migration `009` intentionally expires refresh tokens created by earlier
-versions, so existing users must sign in again after this release.
+After deployment, confirm Alembic reports migration `013` as the current head.
+Migration `009`, which is included in this migration chain, intentionally
+expires refresh tokens created by earlier versions. Users with those older
+sessions must sign in again.
 
 Run the automated and manual checks in
 [`docs/DEPLOYMENT_SMOKE_TEST.md`](docs/DEPLOYMENT_SMOKE_TEST.md) against the

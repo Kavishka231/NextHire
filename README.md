@@ -10,6 +10,9 @@ The app is designed to help users:
 - Track saved jobs by status, such as saved, applied, interview, offer, and rejected.
 - Add notes to saved jobs.
 - View dashboard statistics for saved jobs, activity, companies, and salaries.
+- Maintain candidate profiles and notifications.
+- Let employers publish jobs and manage candidate applications.
+- Provide role-controlled administration and audited security actions.
 - Send reminder emails for stale applications through a Celery worker.
 
 ## Tech Stack
@@ -24,7 +27,7 @@ Backend:
 - Redis
 - Celery
 - Pydantic
-- python-jose and Passlib for authentication/security
+- PyJWT and Passlib for authentication/security
 
 Frontend:
 
@@ -109,10 +112,10 @@ After startup:
 - Swagger and ReDoc are available on the private backend network.
 - Liveness/readiness: `/health` and `/ready` on the private backend network.
 
-Run migrations inside the backend container:
+Run migrations as the controlled operations service:
 
 ```bash
-docker compose exec backend alembic upgrade head
+docker compose --profile operations run --rm migrate
 ```
 
 Stop services:
@@ -157,11 +160,9 @@ http://localhost:8000
 
 The frontend is static HTML/CSS/JS. The Docker Compose setup serves it through Nginx at `http://localhost:5500`.
 
-If you serve it manually, make sure the frontend can reach the backend API. `frontend/js/api.js` currently points to:
-
-```js
-const BASE_URL = "http://localhost:8000/api/v1";
-```
+The browser uses the same-origin `/api/v1` path, which Nginx proxies to the
+private backend service. A separate frontend host can explicitly set
+`window.NEXTHIRE_API_URL` before loading `frontend/js/api.js`.
 
 ## Database
 
@@ -174,6 +175,12 @@ Main tables:
 - `jobs`
 - `saved_jobs`
 - `notes`
+- `user_profiles`
+- `notifications`
+- `job_applications`
+- `password_reset_tokens`
+- `search_logs`
+- `admin_audit_logs`
 
 Run migrations:
 
@@ -190,11 +197,14 @@ python -m alembic revision --autogenerate -m "describe change"
 
 ## API Overview
 
-Base URL:
+Public API path:
 
 ```text
-http://localhost:8000/api/v1
+/api/v1
 ```
+
+Application routes use this prefix. The `/health` and `/ready` operational
+endpoints are served at the site root.
 
 Health:
 
@@ -332,43 +342,19 @@ The tests cover:
 - Notes
 - Saved job status changes
 - Dashboard statistics
+- Profiles and notifications
+- Employer jobs and candidate applications
+- Administration, audit logging, rate limits, and production configuration
+- PostgreSQL integrity constraints
 
 ## Development Workflow
 
-Recommended branch strategy:
-
-```bash
-git checkout main
-git pull origin main
-git checkout -b feature/my-feature
-```
-
-After changes:
-
-```bash
-git add <files>
-git commit -m "Describe the change"
-git push -u origin feature/my-feature
-```
-
-Open a pull request, test the branch, then merge into `main`.
-
-## Current Feature Branches
-
-These branches were created to separate backend fixes/features before merging to `main`:
-
-| Branch | Purpose |
-| --- | --- |
-| `feature/auth-api-fixes` | Auth routes, token flow, password hashing, and user response fixes |
-| `feature/job-search-api` | Job search and cached job route wiring |
-| `feature/saved-jobs-api` | Saved job create/list/status response fixes |
-| `fix/stats-service-syntax` | Restores the stats service implementation after a duplicate-paste syntax issue |
-
-If `main` does not pass the full test suite, merge or test these branches together before treating the API as complete.
+Changes should go through a reviewed pull request. CI runs backend tests,
+PostgreSQL migration and integrity checks, frontend JavaScript validation,
+dependency and secret audits, Compose validation, and container image builds.
 
 ## Known Notes
 
-- The codebase currently contains both older and newer frontend/API flows. The newer dashboard/search/jobs pages expect the fuller API described above.
 - Some files contain encoding artifacts in comments or display text. They do not usually affect runtime behavior, but they can be cleaned up later.
 - `.env`, databases, virtual environments, cache files, and logs are intentionally ignored by `.gitignore`.
 - `__pycache__` files should not be committed.
