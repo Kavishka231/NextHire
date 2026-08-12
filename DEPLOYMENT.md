@@ -56,6 +56,11 @@ characters, deploy once, then set `SEED_ADMIN=false` and redeploy.
 
 ## Release
 
+Production releases are built, published with immutable Git SHA tags, approved,
+deployed, verified, and automatically rolled back by the workflow described in
+[`docs/DEPLOYMENT_AUTOMATION.md`](docs/DEPLOYMENT_AUTOMATION.md). The commands
+below are the equivalent manual release sequence.
+
 ```sh
 docker compose config --quiet
 docker compose build --pull

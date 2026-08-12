@@ -1,0 +1,20 @@
+services:
+  migrate:
+    image: ${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  backend:
+    image: ${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  worker:
+    image: ${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  scheduler:
+    image: ${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  frontend:
+    image: ${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}/frontend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always

@@ -28,6 +28,7 @@ test-results/
 
 # Local database recovery artifacts
 backups/
+.deploy/
 
 # Test DB
 test.db

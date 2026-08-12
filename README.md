@@ -412,6 +412,16 @@ python scripts/database_recovery.py restore backups/<backup>.dump --confirm-data
 python scripts/database_recovery.py verify --expected-head 013
 ```
 
+## Automated deployment
+
+After CI succeeds on `main`, the production workflow builds backend and frontend
+images from that exact commit, tags and publishes them to GHCR with the full Git
+SHA, waits for production approval, and deploys over verified SSH. The host runs
+a backup, migration, readiness checks, and authenticated smoke test. A failure
+automatically restores the previously successful application images and checks
+health again. See
+[`docs/DEPLOYMENT_AUTOMATION.md`](docs/DEPLOYMENT_AUTOMATION.md).
+
 ## Known Notes
 
 - Some files contain encoding artifacts in comments or display text. They do not usually affect runtime behavior, but they can be cleaned up later.
