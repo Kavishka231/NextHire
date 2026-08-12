@@ -84,7 +84,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8000/health
           curl --fail --silent http://127.0.0.1:8000/ready
           curl --fail --silent http://127.0.0.1:8000/api/v1/jobs
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Check frontend JavaScript
