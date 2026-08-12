@@ -49,3 +49,6 @@ The provisioned overview shows the three SLO indicators, request rate by status,
 dependency state, uptime, database connection usage, queue depth, and Celery
 failures. Dashboards support investigation; alerts and notification routing are
 defined separately so operators do not have to watch a screen continuously.
+
+See [ALERTING.md](ALERTING.md) for alert thresholds, notification setup, and
+the operational test procedure.

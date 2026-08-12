@@ -449,6 +449,11 @@ Initial availability, error-rate, and latency SLOs and their rationale are in
 
 ## Useful Commands
 
+Production observability includes Prometheus metrics, a provisioned Grafana
+dashboard, Alertmanager notification routing, and host disk monitoring. See
+[`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) and
+[`docs/ALERTING.md`](docs/ALERTING.md) for SLOs and operator setup.
+
 ```bash
 # Build, migrate, and start everything
 docker compose build

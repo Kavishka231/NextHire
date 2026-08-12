@@ -137,13 +137,40 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      alertmanager:
+        condition: service_started
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheusdata:/prometheus
+    networks: [private]
+
+  alertmanager:
+    image: prom/alertmanager:v0.33.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --enable-feature=utf8-strict-mode
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ${ALERT_WEBHOOK_URL_FILE:-./observability/secrets/alert-webhook-url}:/run/secrets/alert-webhook-url:ro
+      - alertmanagerdata:/alertmanager
+    networks: [private]
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
     networks: [private]
 
   grafana:
@@ -168,6 +195,7 @@ volumes:
   redisdata:
   prometheusdata:
   grafanadata:
+  alertmanagerdata:
 
 networks:
   private:

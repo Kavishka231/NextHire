@@ -1,0 +1,114 @@
+groups:
+  - name: nexthire-application
+    rules:
+      - alert: NextHireApiDown
+        expr: up{job="nexthire-api"} == 0
+        for: 2m
+        labels: {severity: critical, service: api}
+        annotations:
+          summary: NextHire API metrics target is unavailable
+          description: Prometheus has been unable to scrape the API for two minutes.
+
+      - alert: NextHireApiHighErrorRate
+        expr: |
+          (sum(rate(nexthire_http_requests_total{route=~"/api/.*",status=~"5.."}[5m]))
+          / clamp_min(sum(rate(nexthire_http_requests_total{route=~"/api/.*"}[5m])), 0.001)) > 0.05
+          and sum(increase(nexthire_http_requests_total{route=~"/api/.*"}[5m])) >= 20
+        for: 10m
+        labels: {severity: critical, service: api}
+        annotations:
+          summary: API 5xx rate is above 5%
+          description: At least 20 requests were observed and the 5xx ratio remained above 5% for ten minutes.
+
+      - alert: NextHireApiErrorBudgetBurn
+        expr: |
+          (sum(rate(nexthire_http_requests_total{route=~"/api/.*",status=~"5.."}[30m]))
+          / clamp_min(sum(rate(nexthire_http_requests_total{route=~"/api/.*"}[30m])), 0.001)) > 0.01
+          and sum(increase(nexthire_http_requests_total{route=~"/api/.*"}[30m])) >= 100
+        for: 30m
+        labels: {severity: warning, service: api}
+        annotations:
+          summary: API error-rate SLO is burning
+          description: The rolling server-error ratio exceeds the 1% SLO with sufficient traffic.
+
+      - alert: NextHireApiLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(nexthire_http_request_duration_seconds_bucket{route=~"/api/.*"}[5m]))) > 0.5
+          and sum(increase(nexthire_http_requests_total{route=~"/api/.*"}[5m])) >= 20
+        for: 15m
+        labels: {severity: warning, service: api}
+        annotations:
+          summary: API p95 latency exceeds 500 ms
+          description: The p95 latency SLO has been exceeded for fifteen minutes with sufficient traffic.
+
+      - alert: NextHireAvailabilitySloAtRisk
+        expr: |
+          (1 - (sum(increase(nexthire_http_requests_total{route=~"/api/.*",status=~"5.."}[30d]))
+          / clamp_min(sum(increase(nexthire_http_requests_total{route=~"/api/.*"}[30d])), 1))) < 0.995
+          and sum(increase(nexthire_http_requests_total{route=~"/api/.*"}[30d])) >= 1000
+        for: 1h
+        labels: {severity: warning, service: api}
+        annotations:
+          summary: Monthly API availability is below 99.5%
+          description: The rolling 30-day availability objective is at risk.
+
+      - alert: NextHireDatabaseUnavailable
+        expr: nexthire_database_up == 0
+        for: 1m
+        labels: {severity: critical, service: postgresql}
+        annotations:
+          summary: PostgreSQL is unavailable
+          description: The API metrics probe cannot complete SELECT 1 against PostgreSQL.
+
+      - alert: NextHireRedisUnavailable
+        expr: nexthire_redis_up == 0
+        for: 2m
+        labels: {severity: critical, service: redis}
+        annotations:
+          summary: Redis is unavailable
+          description: Authentication rate limits, sessions, and Celery delivery may be impaired.
+
+      - alert: NextHireCeleryQueueBacklog
+        expr: nexthire_celery_queue_depth > 100
+        for: 15m
+        labels: {severity: warning, service: celery}
+        annotations:
+          summary: Celery queue depth exceeds 100
+          description: Tasks are accumulating faster than workers process them.
+
+      - alert: NextHireCeleryTaskFailures
+        expr: increase(nexthire_celery_task_failures_total[10m]) > 0
+        labels: {severity: warning, service: celery}
+        annotations:
+          summary: A Celery task failed
+          description: Inspect worker logs and retry only after identifying whether the task is idempotent.
+
+  - name: nexthire-host
+    rules:
+      - alert: NextHireNodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 5m
+        labels: {severity: warning, service: host}
+        annotations:
+          summary: Host metrics are unavailable
+          description: Prometheus cannot scrape node-exporter; disk alerts may be blind.
+
+      - alert: NextHireDiskSpaceLow
+        expr: |
+          (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) > 0.80
+        for: 10m
+        labels: {severity: warning, service: host}
+        annotations:
+          summary: Host disk usage exceeds 80%
+          description: Disk {{ $labels.device }} mounted at {{ $labels.mountpoint }} needs capacity review.
+
+      - alert: NextHireDiskSpaceLow
+        expr: |
+          (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) > 0.90
+        for: 5m
+        labels: {severity: critical, service: host}
+        annotations:
+          summary: Host disk usage exceeds 90%
+          description: Disk {{ $labels.device }} mounted at {{ $labels.mountpoint }} is critically full.
