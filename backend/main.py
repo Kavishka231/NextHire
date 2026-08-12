@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from sqlalchemy import text
@@ -19,6 +19,7 @@ from app.observability import (
     set_request_context,
     user_id_context,
 )
+from app.metrics import HTTP_IN_PROGRESS, metrics_payload, record_request, route_label
 
 configure_logging()
 configure_sentry()
@@ -74,12 +75,22 @@ async def request_logging_middleware(request: Request, call_next):
     request_token, correlation_token = set_request_context(request_id, correlation_id)
     started_at = time.perf_counter()
     response = None
+    if request.url.path != "/metrics":
+        HTTP_IN_PROGRESS.labels(request.method).inc()
     try:
         response = await call_next(request)
         return response
     finally:
         response_time_ms = round((time.perf_counter() - started_at) * 1000, 2)
         status_code = response.status_code if response else 500
+        if request.url.path != "/metrics":
+            record_request(
+                request.method,
+                route_label(request),
+                status_code,
+                response_time_ms / 1000,
+            )
+            HTTP_IN_PROGRESS.labels(request.method).dec()
         logger.info(
             "HTTP request completed",
             extra={
@@ -139,3 +150,8 @@ def ready():
     redis_client = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
     redis_client.ping()
     return {"status": "ready", "database": "ok", "redis": "ok"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return Response(content=metrics_payload(), media_type="text/plain; version=0.0.4")

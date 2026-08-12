@@ -1,0 +1,21 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Availability (30d)", "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}, "targets": [{"expr": "1 - (sum(increase(nexthire_http_requests_total{route=~\"/api/.*\",status=~\"5..\"}[30d])) / clamp_min(sum(increase(nexthire_http_requests_total{route=~\"/api/.*\"}[30d])), 1))", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []}},
+    {"id": 2, "type": "stat", "title": "API 5xx rate (5m)", "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}, "targets": [{"expr": "sum(rate(nexthire_http_requests_total{route=~\"/api/.*\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(nexthire_http_requests_total{route=~\"/api/.*\"}[5m])), 0.001)", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []}},
+    {"id": 3, "type": "stat", "title": "API p95 latency (5m)", "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(nexthire_http_request_duration_seconds_bucket{route=~\"/api/.*\"}[5m])))", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []}},
+    {"id": 4, "type": "stat", "title": "Application uptime", "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}, "targets": [{"expr": "nexthire_application_uptime_seconds", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []}},
+    {"id": 5, "type": "timeseries", "title": "Request rate by status", "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "sum by (status) (rate(nexthire_http_requests_total{route=~\"/api/.*\"}[5m]))", "legendFormat": "{{status}}", "refId": "A"}]},
+    {"id": 6, "type": "timeseries", "title": "Dependency health", "gridPos": {"h": 9, "w": 6, "x": 12, "y": 8}, "targets": [{"expr": "nexthire_database_up", "legendFormat": "PostgreSQL", "refId": "A"}, {"expr": "nexthire_redis_up", "legendFormat": "Redis", "refId": "B"}]},
+    {"id": 7, "type": "timeseries", "title": "Celery queue and failures", "gridPos": {"h": 9, "w": 6, "x": 18, "y": 8}, "targets": [{"expr": "nexthire_celery_queue_depth", "legendFormat": "Queue depth", "refId": "A"}, {"expr": "increase(nexthire_celery_task_failures_total[1h])", "legendFormat": "Failures/hour", "refId": "B"}]}
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["nexthire", "production"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "NextHire Production Overview",
+  "uid": "nexthire-overview",
+  "version": 1
+}

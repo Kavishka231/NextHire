@@ -89,3 +89,32 @@ def test_request_logging_adds_correlation_headers(client):
     assert response.status_code == 200
     assert UUID(response.headers["X-Request-ID"])
     assert UUID(response.headers["X-Correlation-ID"])
+
+
+def test_metrics_expose_http_runtime_and_dependency_series(client):
+    client.get("/health")
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    body = response.text
+    assert "nexthire_http_requests_total" in body
+    assert 'route="/health"' in body
+    assert "nexthire_http_request_duration_seconds_bucket" in body
+    assert "nexthire_database_up 1.0" in body
+    assert "nexthire_redis_up" in body
+    assert "nexthire_celery_queue_depth" in body
+    assert "nexthire_celery_task_failures_total" in body
+    assert "nexthire_application_uptime_seconds" in body
+
+
+def test_metrics_do_not_use_raw_resource_ids_as_route_labels(client):
+    client.get("/api/v1/jobs/987654321")
+    response = client.get("/metrics")
+
+    metric_lines = [
+        line for line in response.text.splitlines()
+        if line.startswith("nexthire_http_requests_total")
+    ]
+    assert any('route="/api/v1/jobs/{job_id}"' in line for line in metric_lines)
+    assert all('route="/api/v1/jobs/987654321"' not in line for line in metric_lines)

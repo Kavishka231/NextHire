@@ -5,6 +5,8 @@ from celery.schedules import crontab
 from celery.signals import task_failure
 from app.config import settings
 from app.observability import configure_logging, configure_sentry
+from app.metrics import CELERY_FAILURE_KEY
+from redis import Redis
 
 configure_logging()
 configure_sentry()
@@ -39,6 +41,10 @@ celery_app.conf.update(
 
 @task_failure.connect
 def log_task_failure(sender=None, task_id=None, exception=None, **kwargs):
+    try:
+        Redis.from_url(settings.REDIS_URL, socket_connect_timeout=1).incr(CELERY_FAILURE_KEY)
+    except Exception:
+        logger.exception("Could not persist Celery failure metric")
     logger.error(
         "Celery task failed",
         extra={

@@ -427,6 +427,20 @@ the production images and generates checksummed CycloneDX SBOMs for the backend,
 frontend, worker, and scheduler services. See
 [`docs/CONTAINER_SUPPLY_CHAIN.md`](docs/CONTAINER_SUPPLY_CHAIN.md).
 
+## Production observability
+
+The private `/metrics` endpoint exports HTTP traffic, errors and latency,
+PostgreSQL/Redis health, database-pool usage, Celery queue depth and failures,
+release identity, and application uptime. The optional Compose profile
+provisions Prometheus and a Grafana production overview:
+
+```bash
+docker compose --profile observability up -d
+```
+
+Initial availability, error-rate, and latency SLOs and their rationale are in
+[`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md).
+
 ## Known Notes
 
 - Some files contain encoding artifacts in comments or display text. They do not usually affect runtime behavior, but they can be cleaned up later.
