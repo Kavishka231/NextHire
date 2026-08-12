@@ -45,7 +45,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: backend
-          push: true
+          load: true
           tags: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
@@ -53,10 +53,82 @@ jobs:
         with:
           context: frontend
           file: frontend/DockerFile
-          push: true
+          load: true
           tags: ${{ steps.release.outputs.image_repository }}/frontend:${{ steps.release.outputs.image_tag }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
+      - name: Scan backend image for fixable vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Scan frontend image for fixable vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/frontend:${{ steps.release.outputs.image_tag }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Create SBOM directory
+        run: mkdir -p sbom
+      - name: Generate backend CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          format: cyclonedx
+          output: sbom/backend.cdx.json
+      - name: Generate worker CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          format: cyclonedx
+          output: sbom/worker.cdx.json
+      - name: Generate scheduler CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          format: cyclonedx
+          output: sbom/scheduler.cdx.json
+      - name: Generate frontend CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.release.outputs.image_repository }}/frontend:${{ steps.release.outputs.image_tag }}
+          format: cyclonedx
+          output: sbom/frontend.cdx.json
+      - name: Record service image identities and SBOM checksums
+        env:
+          BACKEND_IMAGE: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          FRONTEND_IMAGE: ${{ steps.release.outputs.image_repository }}/frontend:${{ steps.release.outputs.image_tag }}
+        run: |
+          backend_id=$(docker image inspect --format '{{.Id}}' "$BACKEND_IMAGE")
+          frontend_id=$(docker image inspect --format '{{.Id}}' "$FRONTEND_IMAGE")
+          {
+            echo "backend=$BACKEND_IMAGE@$backend_id"
+            echo "worker=$BACKEND_IMAGE@$backend_id"
+            echo "scheduler=$BACKEND_IMAGE@$backend_id"
+            echo "frontend=$FRONTEND_IMAGE@$frontend_id"
+          } > sbom/service-images.txt
+          sha256sum sbom/*.cdx.json > sbom/SHA256SUMS
+      - name: Push vulnerability-approved images to GHCR
+        env:
+          BACKEND_IMAGE: ${{ steps.release.outputs.image_repository }}/backend:${{ steps.release.outputs.image_tag }}
+          FRONTEND_IMAGE: ${{ steps.release.outputs.image_repository }}/frontend:${{ steps.release.outputs.image_tag }}
+        run: |
+          docker push "$BACKEND_IMAGE"
+          docker push "$FRONTEND_IMAGE"
+      - name: Publish container SBOM bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-sboms-${{ steps.release.outputs.image_tag }}
+          path: sbom/
+          if-no-files-found: error
+          retention-days: 90
 
   deploy:
     needs: publish

@@ -422,6 +422,11 @@ automatically restores the previously successful application images and checks
 health again. See
 [`docs/DEPLOYMENT_AUTOMATION.md`](docs/DEPLOYMENT_AUTOMATION.md).
 
+Before GHCR publication, Trivy blocks fixable high/critical vulnerabilities in
+the production images and generates checksummed CycloneDX SBOMs for the backend,
+frontend, worker, and scheduler services. See
+[`docs/CONTAINER_SUPPLY_CHAIN.md`](docs/CONTAINER_SUPPLY_CHAIN.md).
+
 ## Known Notes
 
 - Some files contain encoding artifacts in comments or display text. They do not usually affect runtime behavior, but they can be cleaned up later.

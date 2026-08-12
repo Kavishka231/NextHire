@@ -7,6 +7,8 @@ Docker Compose host. A release is never rebuilt during deployment.
 Push to main
     -> CI tests, migrations, browser tests, scans, and image build
     -> build backend/frontend images from the successful commit
+    -> block fixable HIGH/CRITICAL vulnerabilities with Trivy
+    -> generate and publish service-level CycloneDX SBOMs
     -> tag both images with the full Git SHA
     -> push images to GHCR
     -> production environment approval
@@ -98,3 +100,6 @@ Retain the CI run, image SHA tags/digests, approval, backup identifier, Alembic
 revision, health output, smoke-test output, and deployed SHA. Alert when the
 workflow or rollback fails. If automatic rollback cannot restore health, stop
 traffic, preserve logs and the backup, and follow `DATABASE_RECOVERY.md`.
+
+Container vulnerability gating and SBOM evidence are detailed in
+[`CONTAINER_SUPPLY_CHAIN.md`](CONTAINER_SUPPLY_CHAIN.md).
