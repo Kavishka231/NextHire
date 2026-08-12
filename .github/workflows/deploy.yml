@@ -33,7 +33,7 @@ jobs:
           if [ "${#sha}" -ne 40 ]; then echo "A full 40-character SHA is required" >&2; exit 1; fi
           echo "image_tag=${sha,,}" >> "$GITHUB_OUTPUT"
           echo "image_repository=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/nexthire" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.release.outputs.image_tag }}
       - uses: docker/setup-buildx-action@v3
